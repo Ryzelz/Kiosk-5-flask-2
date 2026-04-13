@@ -1,0 +1,277 @@
+{% extends 'forms.html' %}
+
+{% block title %} Login {% endblock %}
+
+{% block body %}
+<style>
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background: #060b17;
+        color: #f6f7fb;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    a {
+        text-decoration: none;
+    }
+
+    .login-shell {
+        width: min(94%, 1280px);
+        margin: 0 auto;
+    }
+
+    .login-navbar {
+        padding: 18px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: #090d15;
+    }
+
+    .login-brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .login-brand-text {
+        color: #ffffff;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+    }
+
+    .login-search {
+        max-width: 360px;
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 0 10px;
+    }
+
+    .login-search input,
+    .login-search input:focus {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        color: #ffffff;
+    }
+
+    .login-search i,
+    .login-nav-icon {
+        color: #d7dcee;
+    }
+
+    .login-icon-button,
+    .login-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.03);
+        color: #ffffff;
+    }
+
+    .login-avatar {
+        border-radius: 50%;
+        background: linear-gradient(135deg, #7b61ff, #a77dff);
+        border: none;
+    }
+
+    .login-page {
+        padding: 34px 0 48px;
+    }
+
+    .login-hero {
+        border-radius: 18px;
+        overflow: hidden;
+        background: #101725;
+        min-height: 100%;
+        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .login-hero img {
+        width: 100%;
+        height: 100%;
+        min-height: 540px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .login-card {
+        background: #121a29;
+        border-radius: 18px;
+        padding: 34px 30px;
+        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+        height: 100%;
+    }
+
+    .login-eyebrow {
+        color: #a8b4cc;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 0.78rem;
+        margin-bottom: 10px;
+    }
+
+    .login-title {
+        margin: 0 0 10px;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .login-copy {
+        color: #a8b4cc;
+        margin-bottom: 26px;
+    }
+
+    .login-field {
+        margin-bottom: 18px;
+    }
+
+    .login-label {
+        display: block;
+        color: #eef2fb;
+        font-size: 0.92rem;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .login-input,
+    .login-input:focus {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: #ffffff;
+        min-height: 48px;
+        padding: 10px 14px;
+        box-shadow: none;
+    }
+
+    .login-input::placeholder {
+        color: #8f9ab0;
+        opacity: 1;
+    }
+
+    .login-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+
+    .login-submit,
+    .login-link {
+        min-height: 46px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .login-submit {
+        border: none;
+        background: #24324b;
+        color: #ffffff;
+        cursor: pointer;
+        flex: 1 1 180px;
+    }
+
+    .login-link {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.03);
+        flex: 1 1 140px;
+    }
+
+    .login-note {
+        margin-top: 22px;
+        color: #a8b4cc;
+        font-size: 0.92rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .login-hero img {
+            min-height: 280px;
+        }
+    }
+</style>
+
+<nav class="login-navbar">
+    <div class="login-shell">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <a class="d-flex align-items-center gap-2" href="/">
+                <span class="login-brand-mark">
+                    <i class="bi bi-eye-fill"></i>
+                </span>
+                <span class="login-brand-text">WIDEYE.</span>
+            </a>
+
+            <div class="login-search d-flex align-items-center">
+                <i class="bi bi-search"></i>
+                <input class="form-control" type="search" placeholder="Search..." aria-label="Search" readonly>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <span class="login-icon-button login-nav-icon"><i class="bi bi-house"></i></span>
+                <span class="login-icon-button login-nav-icon"><i class="bi bi-bell"></i></span>
+                <span class="login-avatar"><i class="bi bi-person-fill"></i></span>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<section class="login-page">
+    <div class="login-shell">
+        <div class="row g-4 align-items-stretch">
+            <div class="col-lg-7">
+                <div class="login-hero">
+                    <img src="{{ url_for('static', filename='images/logo_1.jpg') }}" alt="Wideye coffee collection">
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="login-card">
+                    <div class="login-eyebrow">Wideye Account</div>
+                    <h1 class="login-title">Sign in to continue shopping</h1>
+                    <p class="login-copy">Keep the same storefront feel while accessing your cart, orders, and profile.</p>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="login-field">
+                            <label class="login-label" for="email">Email address</label>
+                            {{ form.email(id='email', class_='login-input', placeholder='Enter your email') }}
+                        </div>
+
+                        <div class="login-field">
+                            <label class="login-label" for="password">Password</label>
+                            {{ form.password(id='password', class_='login-input', placeholder='Enter your password') }}
+                        </div>
+
+                        <div class="login-actions">
+                            {{ form.submit(class_='login-submit') }}
+                            <a class="login-link" href="/sign-up">Create account</a>
+                        </div>
+                    </form>
+
+                    <p class="login-note">Fresh coffee, dark interface, same Wideye theme.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

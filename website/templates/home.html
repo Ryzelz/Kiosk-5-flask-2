@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %} Home {% endblock %}
+
+{% block body %}
+{% set item_list = items | default([], true) | list %}
+<div class="wideye-shell pb-4">
+    <style>
+        .wideye-hero {
+            border-radius: 0 0 18px 18px;
+            overflow: hidden;
+            background: #101725;
+            margin-bottom: 40px;
+        }
+
+        .wideye-hero img {
+            width: 100%;
+            height: 410px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .wideye-filter-bar {
+            background: #f4f4f7;
+            border-radius: 12px;
+            padding: 10px 18px;
+            margin-bottom: 18px;
+        }
+
+        .wideye-filter-link {
+            color: #687287;
+            font-size: 0.95rem;
+            white-space: nowrap;
+        }
+
+        .wideye-filter-link i {
+            margin-right: 8px;
+        }
+
+        .wideye-product-card {
+            background: #121a29;
+            border: none;
+            border-radius: 12px;
+            overflow: hidden;
+            height: 100%;
+            box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+        }
+
+        .wideye-product-card img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .wideye-product-body {
+            padding: 16px 14px 14px;
+            color: #eef2fb;
+        }
+
+        .wideye-product-title {
+            font-size: 1.22rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .wideye-product-copy {
+            color: #a8b4cc;
+            min-height: 72px;
+            margin-bottom: 12px;
+        }
+
+        .wideye-meta-label {
+            display: block;
+            font-size: 0.78rem;
+            color: #a9b4ca;
+            margin-bottom: 4px;
+        }
+
+        .wideye-meta-value {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            color: #ffffff;
+            font-size: 0.82rem;
+            padding: 4px 10px;
+        }
+
+        .wideye-color-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.75);
+            background: #263246;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        .wideye-add-link {
+            color: #ffffff;
+            font-weight: 600;
+            background: #24324b;
+            border-radius: 999px;
+            padding: 8px 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media (max-width: 767.98px) {
+            .wideye-hero img {
+                height: 260px;
+            }
+        }
+    </style>
+
+    <section class="wideye-hero">
+        <img src="{{ url_for('static', filename='images/featured.jpg') }}" alt="Wideye featured coffee products">
+    </section>
+
+    <section class="wideye-filter-bar">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <span class="wideye-filter-link"><i class="bi bi-grid"></i>All</span>
+            <span class="wideye-filter-link"><i class="bi bi-cup-hot"></i>Coffee</span>
+            <span class="wideye-filter-link"><i class="bi bi-record-circle"></i>Beans</span>
+            <span class="wideye-filter-link"><i class="bi bi-funnel"></i>Filters</span>
+            <span class="wideye-filter-link"><i class="bi bi-box-seam"></i>Merchandise</span>
+        </div>
+    </section>
+
+    {% if item_list | length < 1 %}
+    <div class="text-center py-5">
+        <h3>No shop items available.</h3>
+    </div>
+    {% else %}
+    <section class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
+        {% for item in item_list %}
+        <div class="col">
+            <div class="wideye-product-card">
+                <img src="{{ item.product_picture }}" alt="{{ item.product_name }}">
+                <div class="wideye-product-body">
+                    <h3 class="wideye-product-title">{{ item.product_name }}</h3>
+                    <p class="wideye-product-copy">
+                        Premium Wideye selection with rich flavor notes and carefully prepared presentation.
+                    </p>
+
+                    <div class="row g-3 align-items-end">
+                        <div class="col-7">
+                            <label class="wideye-meta-label">Size</label>
+                            <div class="wideye-meta-value">
+                                {% if item.in_stock >= 250 %}
+                                250ML
+                                {% elif item.in_stock >= 200 %}
+                                200G
+                                {% elif item.in_stock >= 100 %}
+                                100G
+                                {% else %}
+                                Limited
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-5">
+                            <label class="wideye-meta-label">Color</label>
+                            <span class="wideye-color-dot"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
+                        <div>
+                            <div class="fw-bold">PhP {{ item.current_price }}</div>
+                            <small class="text-secondary"><s>PhP {{ item.previous_price }}</s></small>
+                        </div>
+                        <a class="wideye-add-link" href="/add-to-cart/{{ item.id }}">Add to cart</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

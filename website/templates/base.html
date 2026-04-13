@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
+
+    <script src="https://kit.fontawesome.com/e24507d923.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        body {
+            background: #060b17;
+            color: #f6f7fb;
+            min-height: 100vh;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        .wideye-shell {
+            width: min(94%, 1280px);
+            margin: 0 auto;
+        }
+
+        .wideye-navbar {
+            background: #090d15;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 18px 0;
+        }
+
+        .wideye-brand-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .wideye-brand-text {
+            color: #ffffff;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .wideye-search-form {
+            max-width: 440px;
+            width: 100%;
+        }
+
+        .wideye-search-input,
+        .wideye-search-input:focus {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            color: #ffffff;
+        }
+
+        .wideye-search-wrap {
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 0 10px;
+        }
+
+        .wideye-search-wrap i,
+        .wideye-nav-icon {
+            color: #d7dcee;
+        }
+
+        .wideye-icon-button {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .wideye-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7b61ff, #a77dff);
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .wideye-badge {
+            top: -6px;
+            right: -4px;
+            font-size: 0.68rem;
+            min-width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffbf2f;
+            color: #161616;
+        }
+
+        .wideye-alert {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 12px;
+            color: #09111f;
+        }
+
+        .wideye-footer {
+            color: rgba(255, 255, 255, 0.7);
+            padding: 24px 0 32px;
+        }
+
+        .wideye-footer a {
+            color: #ffffff;
+        }
+    </style>
+
+    <title>Wideye | {% block title %}{% endblock %}</title>
+</head>
+<body>
+    {% set cart_items = cart | default([], true) | list %}
+
+    <nav class="wideye-navbar">
+        <div class="wideye-shell">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <a class="d-flex align-items-center gap-2" href="/">
+                    <span class="wideye-brand-mark">
+                        <i class="bi bi-eye-fill"></i>
+                    </span>
+                    <span class="wideye-brand-text">WIDEYE.</span>
+                </a>
+
+                <form class="wideye-search-form" role="search" action="/search" method="POST">
+                    <div class="wideye-search-wrap d-flex align-items-center">
+                        <i class="bi bi-search"></i>
+                        <input class="form-control wideye-search-input" name="search" type="search" placeholder="Search..." aria-label="Search">
+                    </div>
+                </form>
+
+                <div class="d-flex align-items-center gap-2">
+                    <a class="wideye-icon-button wideye-nav-icon" href="/cart" aria-label="Cart">
+                        <span class="position-relative d-inline-flex">
+                            <i class="bi bi-bag"></i>
+                            {% if cart_items | length > 0 %}
+                            <span class="position-absolute rounded-pill wideye-badge">{{ cart_items | length }}</span>
+                            {% endif %}
+                        </span>
+                    </a>
+                    <a class="wideye-icon-button wideye-nav-icon" href="/orders" aria-label="Orders">
+                        <i class="bi bi-bell"></i>
+                    </a>
+                    {% if current_user.is_authenticated %}
+                    <div class="dropdown">
+                        <a class="wideye-avatar dropdown-toggle" href="#" role="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-fill"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                            <li><a class="dropdown-item" href="/profile/{{ current_user.id }}">Profile</a></li>
+                            <li><a class="dropdown-item" href="/orders">Orders</a></li>
+                            <li><a class="dropdown-item" href="/logout">Log Out</a></li>
+                        </ul>
+                    </div>
+                    {% else %}
+                    <a class="wideye-avatar" href="/login" aria-label="Login">
+                        <i class="bi bi-person-fill"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wideye-shell pt-3">
+        {% for message in get_flashed_messages() %}
+        <div class="alert alert-dismissible fade show wideye-alert" role="alert">
+            <strong>{{ message }}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% block body %}
+    {% endblock %}
+
+    <footer class="wideye-footer">
+        <div class="wideye-shell text-center">
+            <a href="/">Wideye</a> <span class="mx-1">|</span> <span>&copy; 2069 All rights reserved</span>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/owl.carousel.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/all.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/myScript.js') }}"></script>
+</body>
+</html>

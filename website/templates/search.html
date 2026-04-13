@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %} Search {% endblock %}
+
+
+{% block body %}
+
+{% set item_list = items | default([], true) | list %}
+
+<style>
+    .search-grid {
+        margin-top: 12px;
+    }
+
+    .search-card {
+        background: #121a29;
+        border-radius: 12px;
+        padding: 16px;
+        height: 100%;
+        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .search-card img {
+        height: 202px;
+        width: 180px;
+        border-radius: 10px;
+        object-fit: cover;
+    }
+
+    .search-name {
+        color: #eef2fb;
+        margin-top: 10px;
+    }
+
+    .search-stock {
+        color: #a8b4cc;
+        margin-top: 10px;
+    }
+
+    .search-add {
+        color: #ffffff;
+        background: #24324b;
+        border-radius: 999px;
+        padding: 8px 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+{% if item_list | length < 1 %}
+<h3 style="color: white;">No Items Match your Search query</h3>
+
+{% else %}
+
+
+<div class="container text-center search-grid">
+    <div class="row g-4" id="column">
+
+        {% for item in item_list %}
+
+        <div class="col">
+            <div class="search-card">
+            <img src="{{ item.product_picture }}" alt="">
+
+            <div class="row" style="margin-top: 5px;">
+                <h6 class="search-name">{{ item.product_name }}</h6>
+            </div>
+
+            <div class="row" style="margin-top: 10px;">
+            
+                <div class="col">
+
+                    <h5 style="font-weight: 600; font-family: 'Times New Roman', Times, serif;">PhP {{ item.current_price }}</h5>
+                    <strike><p style="color: #a8b4cc;">PhP {{ item.previous_price}}</p></strike>
+                </div>
+
+                <div class="col">
+                    <a class="search-add" href="/add-to-cart/{{ item.id }}">Add</a>
+                </div>
+            
+            </div>
+
+            <div class="row">
+                <p class="search-stock">{{ item.in_stock }} Items Left</p>
+            </div>
+            </div>
+        </div>
+    
+        {% endfor %}
+
+    </div>
+</div>
+
+{% endif %}
+
+{% endblock %}

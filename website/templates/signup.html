@@ -1,0 +1,287 @@
+{% extends 'forms.html' %}
+
+{% block title %} Sign Up {% endblock %}
+
+{% block body %}
+<style>
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background: #060b17;
+        color: #f6f7fb;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    a {
+        text-decoration: none;
+    }
+
+    .signup-shell {
+        width: min(94%, 1280px);
+        margin: 0 auto;
+    }
+
+    .signup-navbar {
+        padding: 18px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: #090d15;
+    }
+
+    .signup-brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .signup-brand-text {
+        color: #ffffff;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+    }
+
+    .signup-search {
+        max-width: 360px;
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 0 10px;
+    }
+
+    .signup-search input,
+    .signup-search input:focus {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        color: #ffffff;
+    }
+
+    .signup-search i,
+    .signup-nav-icon {
+        color: #d7dcee;
+    }
+
+    .signup-icon-button,
+    .signup-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.03);
+        color: #ffffff;
+    }
+
+    .signup-avatar {
+        border-radius: 50%;
+        background: linear-gradient(135deg, #7b61ff, #a77dff);
+        border: none;
+    }
+
+    .signup-page {
+        padding: 34px 0 48px;
+    }
+
+    .signup-hero {
+        border-radius: 18px;
+        overflow: hidden;
+        background: #101725;
+        min-height: 100%;
+        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .signup-hero img {
+        width: 100%;
+        height: 100%;
+        min-height: 620px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .signup-card {
+        background: #121a29;
+        border-radius: 18px;
+        padding: 34px 30px;
+        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+        height: 100%;
+    }
+
+    .signup-eyebrow {
+        color: #a8b4cc;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 0.78rem;
+        margin-bottom: 10px;
+    }
+
+    .signup-title {
+        margin: 0 0 10px;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .signup-copy {
+        color: #a8b4cc;
+        margin-bottom: 26px;
+    }
+
+    .signup-field {
+        margin-bottom: 16px;
+    }
+
+    .signup-label {
+        display: block;
+        color: #eef2fb;
+        font-size: 0.92rem;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .signup-input,
+    .signup-input:focus {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: #ffffff;
+        min-height: 48px;
+        padding: 10px 14px;
+        box-shadow: none;
+    }
+
+    .signup-input::placeholder {
+        color: #8f9ab0;
+        opacity: 1;
+    }
+
+    .signup-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+
+    .signup-submit,
+    .signup-link {
+        min-height: 46px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .signup-submit {
+        border: none;
+        background: #24324b;
+        color: #ffffff;
+        cursor: pointer;
+        flex: 1 1 180px;
+    }
+
+    .signup-link {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.03);
+        flex: 1 1 140px;
+    }
+
+    .signup-note {
+        margin-top: 22px;
+        color: #a8b4cc;
+        font-size: 0.92rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .signup-hero img {
+            min-height: 280px;
+        }
+    }
+</style>
+
+<nav class="signup-navbar">
+    <div class="signup-shell">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <a class="d-flex align-items-center gap-2" href="/">
+                <span class="signup-brand-mark">
+                    <i class="bi bi-eye-fill"></i>
+                </span>
+                <span class="signup-brand-text">WIDEYE.</span>
+            </a>
+
+            <div class="signup-search d-flex align-items-center">
+                <i class="bi bi-search"></i>
+                <input class="form-control" type="search" placeholder="Search..." aria-label="Search" readonly>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <span class="signup-icon-button signup-nav-icon"><i class="bi bi-house"></i></span>
+                <span class="signup-icon-button signup-nav-icon"><i class="bi bi-bell"></i></span>
+                <span class="signup-avatar"><i class="bi bi-person-fill"></i></span>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<section class="signup-page">
+    <div class="signup-shell">
+        <div class="row g-4 align-items-stretch">
+            <div class="col-lg-7">
+                <div class="signup-hero">
+                    <img src="{{ url_for('static', filename='images/logo_1.jpg') }}" alt="Wideye coffee collection">
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="signup-card">
+                    <div class="signup-eyebrow">Wideye Account</div>
+                    <h1 class="signup-title">Create your account</h1>
+                    <p class="signup-copy">Join the same dark Wideye storefront experience and start shopping right away.</p>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="signup-field">
+                            <label class="signup-label" for="email">Email address</label>
+                            {{ form.email(id='email', class_='signup-input', placeholder='Enter your email') }}
+                        </div>
+
+                        <div class="signup-field">
+                            <label class="signup-label" for="username">Username</label>
+                            {{ form.username(id='username', class_='signup-input', placeholder='Choose a username') }}
+                        </div>
+
+                        <div class="signup-field">
+                            <label class="signup-label" for="password1">Password</label>
+                            {{ form.password1(id='password1', class_='signup-input', placeholder='Create a password') }}
+                        </div>
+
+                        <div class="signup-field">
+                            <label class="signup-label" for="password2">Confirm password</label>
+                            {{ form.password2(id='password2', class_='signup-input', placeholder='Confirm your password') }}
+                        </div>
+
+                        <div class="signup-actions">
+                            {{ form.submit(class_='signup-submit') }}
+                            <a class="signup-link" href="/login">Log in</a>
+                        </div>
+                    </form>
+
+                    <p class="signup-note">Clean layout, matching hero, and the same Wideye visual theme.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
