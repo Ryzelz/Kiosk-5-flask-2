@@ -108,7 +108,7 @@ def minus_cart():
         data = {
             'quantity': cart_item.quantity,
             'amount': amount,
-            'total': amount + 200
+            'total': amount + 200 #niggg
         }
 
         return jsonify(data)
