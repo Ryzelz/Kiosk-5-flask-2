@@ -941,6 +941,9 @@ class TestFaceRecognitionFlow:
         assert b'id="cameraSelect"' in resp.data
         assert b'id="switchCameraButton"' in resp.data
         assert b'Camera source' in resp.data
+        assert b'wideye-camera-actions-usual' in resp.data
+        assert b'wideye-confirm-button' in resp.data
+        assert b'Starting camera...' in resp.data
 
     def test_usual_order_confirm_no_trained_faces(self, client, app):
         with patch('website.views.recognize_face_from_frame_data') as mock_rec:

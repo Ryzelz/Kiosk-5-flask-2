@@ -248,6 +248,26 @@ def create_app():
         sync_cart_schema()
         sync_order_schema()
         sync_usual_order_schema()
+        seed_admin_account()
 
     return app
+
+
+def seed_admin_account():
+    """Create a default admin account if one doesn't already exist."""
+    from .models import Customer
+
+    if Customer.query.filter_by(email='admin@wideye.local').first():
+        return
+
+    admin = Customer()
+    admin.email = 'admin@wideye.local'
+    admin.username = 'admin'
+    admin.password = 'admin1'
+    admin.is_admin = True
+    admin.face_profile_name = 'admin'
+
+    db.session.add(admin)
+    db.session.commit()
+    print('✔ Default admin account created (admin / admin1)')
 

@@ -357,7 +357,7 @@
         }, 1200);
     };
 
-    startButton.addEventListener('click', async () => {
+    const handleStartCamera = async (showReadyStatus = true) => {
         if (busy) {
             return;
         }
@@ -373,12 +373,19 @@
             await startCamera(selectedDeviceId);
             startPreviewLoop();
             renderSteps();
+            if (!showReadyStatus && stream) {
+                setStatus('Camera is on. Position your face inside the frame.', false);
+            }
         } catch (error) {
             setStatus(error.message || 'Camera could not be started.', true);
         } finally {
             busy = false;
             syncCameraSwitcherState();
         }
+    };
+
+    startButton.addEventListener('click', async () => {
+        await handleStartCamera(true);
     });
 
     if (captureButton) {
@@ -477,4 +484,10 @@
         renderCameraOptions();
     });
     renderSteps();
+
+    if (mode === 'usual') {
+        window.setTimeout(() => {
+            handleStartCamera(false);
+        }, 0);
+    }
 })();

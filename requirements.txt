@@ -8,3 +8,5 @@ numpy
 opencv-python
 ultralytics
 pytest
+gunicorn
+psycopg2-binary
