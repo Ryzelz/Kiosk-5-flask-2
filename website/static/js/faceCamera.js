@@ -13,6 +13,9 @@
     const canvas = document.getElementById('faceCameraCanvas');
     const overlayCanvas = document.getElementById('faceCameraOverlay');
     const stepsContainer = document.getElementById('faceTrainingSteps');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const switchCameraButton = document.getElementById('switchCameraButton');
+    const paymentToggle = document.getElementById('paymentMethodToggle');
     const previewUrl = app.dataset.previewUrl;
     const captureUrl = app.dataset.captureUrl;
     const confirmUrl = app.dataset.confirmUrl;
@@ -25,10 +28,85 @@
     let busy = false;
     let previewBusy = false;
     let previewTimer = null;
+    let selectedDeviceId = '';
+    let videoDevices = [];
+    let selectedPaymentMethod = 'cashless';
 
     const setStatus = (message, isError) => {
         statusBox.textContent = message;
         statusBox.style.color = isError ? '#ff9b9b' : '#d7dcee';
+    };
+
+    const getDeviceLabel = (device, index) => device.label || `Camera ${index + 1}`;
+
+    const getCurrentTrackDeviceId = () => {
+        if (!stream) {
+            return '';
+        }
+
+        const [videoTrack] = stream.getVideoTracks();
+        return videoTrack?.getSettings()?.deviceId || '';
+    };
+
+    const syncCameraSwitcherState = () => {
+        if (!cameraSelect || !switchCameraButton) {
+            return;
+        }
+
+        const canSwitch = videoDevices.length > 1;
+        cameraSelect.disabled = busy || !canSwitch;
+        switchCameraButton.disabled = busy || !canSwitch;
+    };
+
+    const renderCameraOptions = () => {
+        if (!cameraSelect) {
+            return;
+        }
+
+        const activeDeviceId = getCurrentTrackDeviceId();
+        const currentValue = selectedDeviceId || activeDeviceId;
+        cameraSelect.innerHTML = '';
+
+        if (!videoDevices.length) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Default camera';
+            cameraSelect.appendChild(option);
+            syncCameraSwitcherState();
+            return;
+        }
+
+        videoDevices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.textContent = getDeviceLabel(device, index);
+            cameraSelect.appendChild(option);
+        });
+
+        if (currentValue && videoDevices.some((device) => device.deviceId === currentValue)) {
+            cameraSelect.value = currentValue;
+            selectedDeviceId = currentValue;
+        } else {
+            cameraSelect.value = videoDevices[0].deviceId;
+            selectedDeviceId = cameraSelect.value;
+        }
+
+        syncCameraSwitcherState();
+    };
+
+    const loadVideoDevices = async () => {
+        if (!cameraSelect || !navigator.mediaDevices?.enumerateDevices) {
+            return;
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        videoDevices = devices.filter((device) => device.kind === 'videoinput');
+
+        if (selectedDeviceId && !videoDevices.some((device) => device.deviceId === selectedDeviceId)) {
+            selectedDeviceId = '';
+        }
+
+        renderCameraOptions();
     };
 
     const renderSteps = () => {
@@ -138,19 +216,30 @@
         return data;
     };
 
-    const startCamera = async () => {
+    const startCamera = async (deviceId) => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('This browser does not support camera access.');
+        }
+
         if (stream) {
             return;
         }
 
+        const videoConstraints = deviceId
+            ? { deviceId: { exact: deviceId } }
+            : { facingMode: 'user' };
+
         stream = await navigator.mediaDevices.getUserMedia({
             video: {
-                facingMode: 'user'
+                ...videoConstraints
             },
             audio: false
         });
 
         video.srcObject = stream;
+        await video.play();
+        selectedDeviceId = getCurrentTrackDeviceId() || deviceId || selectedDeviceId;
+        await loadVideoDevices();
         setStatus('Camera ready. Position your face inside the frame.', false);
         clearOverlay();
     };
@@ -169,6 +258,12 @@
         stream = null;
         video.srcObject = null;
         clearOverlay();
+    };
+
+    const restartCamera = async (deviceId) => {
+        stopCamera();
+        await startCamera(deviceId);
+        startPreviewLoop();
     };
 
     const runPreview = async () => {
@@ -250,7 +345,8 @@
     const handleUsualConfirm = async () => {
         const frame = getFrameData();
         const result = await postJson(confirmUrl, {
-            frame: frame
+            frame: frame,
+            payment_method: selectedPaymentMethod
         });
 
         setStatus(result.message, false);
@@ -268,18 +364,20 @@
 
         try {
             busy = true;
+            syncCameraSwitcherState();
 
             if (mode === 'training') {
                 await resetTraining();
             }
 
-            await startCamera();
+            await startCamera(selectedDeviceId);
             startPreviewLoop();
             renderSteps();
         } catch (error) {
             setStatus(error.message || 'Camera could not be started.', true);
         } finally {
             busy = false;
+            syncCameraSwitcherState();
         }
     });
 
@@ -291,13 +389,14 @@
 
             try {
                 busy = true;
+                syncCameraSwitcherState();
 
                 if (!stream) {
                     if (mode === 'training' && currentStepIndex === 0) {
                         await resetTraining();
                     }
 
-                    await startCamera();
+                    await startCamera(selectedDeviceId);
                     startPreviewLoop();
                 }
 
@@ -310,7 +409,51 @@
                 setStatus(error.message || 'Capture failed.', true);
             } finally {
                 busy = false;
+                syncCameraSwitcherState();
             }
+        });
+    }
+
+    if (cameraSelect) {
+        cameraSelect.addEventListener('change', () => {
+            selectedDeviceId = cameraSelect.value;
+        });
+    }
+
+    if (switchCameraButton) {
+        switchCameraButton.addEventListener('click', async () => {
+            if (busy) {
+                return;
+            }
+
+            if (!selectedDeviceId) {
+                setStatus('Select a camera source first.', true);
+                return;
+            }
+
+            try {
+                busy = true;
+                syncCameraSwitcherState();
+                await restartCamera(selectedDeviceId);
+                const selectedIndex = videoDevices.findIndex((device) => device.deviceId === selectedDeviceId);
+                const selectedLabel = selectedIndex >= 0 ? getDeviceLabel(videoDevices[selectedIndex], selectedIndex) : 'selected camera';
+                setStatus(`Switched to ${selectedLabel}. Position your face inside the frame.`, false);
+            } catch (error) {
+                setStatus(error.message || 'Camera could not be switched.', true);
+            } finally {
+                busy = false;
+                syncCameraSwitcherState();
+            }
+        });
+    }
+
+    if (paymentToggle) {
+        paymentToggle.querySelectorAll('.wideye-payment-toggle-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                paymentToggle.querySelectorAll('.wideye-payment-toggle-btn').forEach((b) => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedPaymentMethod = btn.dataset.method;
+            });
         });
     }
 
@@ -330,5 +473,8 @@
         stopCamera();
     });
 
+    loadVideoDevices().catch(() => {
+        renderCameraOptions();
+    });
     renderSteps();
 })();

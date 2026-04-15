@@ -100,6 +100,7 @@ class Order(db.Model):
     shot = db.Column(db.String(100), nullable=False, default='')
     price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(100), nullable=False)
+    payment_method = db.Column(db.String(50), nullable=False, default='cashless')
     payment_id = db.Column(db.String(1000), nullable=False)
 
     customer_link = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)

@@ -92,6 +92,72 @@
             margin-top: 18px;
         }
 
+        .wideye-camera-switcher {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 14px;
+            align-items: end;
+        }
+
+        .wideye-camera-switcher-field {
+            flex: 1 1 240px;
+        }
+
+        .wideye-camera-switcher label {
+            display: block;
+            margin-bottom: 6px;
+            color: #d7dcee;
+            font-size: 0.95rem;
+        }
+
+        .wideye-camera-switcher select {
+            width: 100%;
+            min-height: 44px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.04);
+            color: #f6f7fb;
+            padding: 10px 12px;
+        }
+
+        .wideye-camera-switcher select:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .wideye-payment-toggle {
+            display: flex;
+            gap: 0;
+            margin-top: 14px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .wideye-payment-toggle-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            background: rgba(255, 255, 255, 0.04);
+            color: #94a2bc;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            text-align: center;
+        }
+
+        .wideye-payment-toggle-btn.active {
+            background: rgba(255, 191, 47, 0.15);
+            color: #ffbf2f;
+        }
+
+        .wideye-payment-toggle-btn:not(.active):hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #d7dcee;
+        }
+
         .wideye-camera-secondary {
             background: transparent;
             color: #f6f7fb;
@@ -186,6 +252,27 @@
                 {% endif %}
             </div>
 
+            {% if mode == 'usual' %}
+            <div class="wideye-camera-switcher">
+                <div class="wideye-camera-switcher-field">
+                    <label for="cameraSelect">Camera source</label>
+                    <select id="cameraSelect" aria-label="Select camera source">
+                        <option value="">Default camera</option>
+                    </select>
+                </div>
+                <button type="button" id="switchCameraButton" class="btn wideye-camera-secondary">Switch camera</button>
+            </div>
+
+            <div class="wideye-payment-toggle" id="paymentMethodToggle">
+                <button type="button" class="wideye-payment-toggle-btn active" data-method="cashless">
+                    <i class="bi bi-qr-code"></i> Cashless
+                </button>
+                <button type="button" class="wideye-payment-toggle-btn" data-method="cash">
+                    <i class="bi bi-cash-stack"></i> Cash
+                </button>
+            </div>
+            {% endif %}
+
             <div id="faceCameraStatus" class="wideye-camera-status">
                 Camera is idle. Start the camera to begin.
             </div>
@@ -208,8 +295,16 @@
                     <div class="wideye-step-meta">Keep your face centered before confirming.</div>
                 </div>
                 <div class="wideye-step-item active">
-                    <div class="fw-semibold">3. Confirm</div>
-                    <div class="wideye-step-meta">Click <strong>Confirm usual order</strong> to add your usual item to the cart.</div>
+                    <div class="fw-semibold">3. Pick a camera if needed</div>
+                    <div class="wideye-step-meta">Use <strong>Camera source</strong> when your browser sees more than one camera.</div>
+                </div>
+                <div class="wideye-step-item active">
+                    <div class="fw-semibold">4. Choose payment method</div>
+                    <div class="wideye-step-meta">Select <strong>Cashless</strong> (QR scan) or <strong>Cash</strong> (pay at counter).</div>
+                </div>
+                <div class="wideye-step-item active">
+                    <div class="fw-semibold">5. Confirm</div>
+                    <div class="wideye-step-meta">Click <strong>Confirm usual order</strong> to place the order.</div>
                 </div>
             </div>
             {% endif %}

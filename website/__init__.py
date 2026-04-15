@@ -153,6 +153,9 @@ def sync_order_schema():
     if 'size' not in existing_columns:
         statements.append("ALTER TABLE \"order\" ADD COLUMN size VARCHAR(100) DEFAULT '' NOT NULL")
 
+    if 'payment_method' not in existing_columns:
+        statements.append("ALTER TABLE \"order\" ADD COLUMN payment_method VARCHAR(50) DEFAULT 'cashless' NOT NULL")
+
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))

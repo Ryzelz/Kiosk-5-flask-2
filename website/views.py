@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, flash, redirect, request, jsonify, url_for
 from sqlalchemy import func, or_
+import uuid
 
 from .models import Product, Cart, Order, Customer
 from flask_login import login_required, current_user
@@ -201,6 +202,86 @@ def create_order_and_payment(customer_id, items_list):
     }
 
 
+def create_order_cash(customer_id, items_list):
+    """Create orders for a cash payment (no PayMongo call).
+
+    Returns:
+        Dict with order_group_id and total.
+    """
+    total = 0
+    for item in items_list:
+        total += item['product'].current_price * item['quantity']
+
+    order_group_id = f'cash-{uuid.uuid4().hex[:12]}'
+
+    for item in items_list:
+        new_order = Order()
+        new_order.quantity = item['quantity']
+        new_order.size = item.get('size', '')
+        new_order.sugar = item.get('sugar', '')
+        new_order.milk = item.get('milk', '')
+        new_order.shot = item.get('shot', '')
+        new_order.price = item['product'].current_price
+        new_order.status = 'Pending'
+        new_order.payment_method = 'cash'
+        new_order.payment_id = order_group_id
+        new_order.product_link = item['product'].id
+        new_order.customer_link = customer_id
+
+        db.session.add(new_order)
+
+        product = Product.query.get(item['product'].id)
+        product.in_stock -= item['quantity']
+
+    db.session.commit()
+
+    return {
+        'order_group_id': order_group_id,
+        'total': total,
+    }
+
+
+def print_cash_receipt(orders, total):
+    """Best-effort thermal receipt for cash orders via QR204."""
+    try:
+        from thermal_printer import QR204Printer
+        with QR204Printer() as printer:
+            printer.align('center')
+            printer.bold()
+            printer.double_size()
+            printer.println('WIDEYE KIOSK')
+            printer.double_size(False)
+            printer.bold(False)
+            printer.println('Cash Payment Receipt')
+            printer.print_separator()
+
+            printer.align('left')
+            for order in orders:
+                name = order.product.product_name if order.product else 'Unknown'
+                printer.println(f'{name} x{order.quantity}')
+                options = format_option_summary(order)
+                if options and options != 'No add-ons':
+                    printer.println(f'  {options}')
+                printer.println(f'  PhP {order.price:.2f} each')
+            printer.print_separator()
+
+            printer.align('right')
+            printer.bold()
+            printer.println(f'TOTAL: PhP {total:.2f}')
+            printer.bold(False)
+
+            printer.align('center')
+            printer.feed(1)
+            printer.bold()
+            printer.println('PLEASE PAY AT THE COUNTER')
+            printer.bold(False)
+            printer.println('Thank you!')
+
+            printer.cut()
+    except Exception as exc:
+        print(f'Thermal printer error (non-fatal): {exc}')
+
+
 @views.route('/')
 def home():
 
@@ -333,13 +414,37 @@ def remove_cart():
         return jsonify(data)
 
 
-@views.route('/place-order')
+@views.route('/choose-payment')
 @login_required
-def place_order():
+def choose_payment():
     customer_cart = Cart.query.filter_by(customer_link=current_user.id).all()
     if not customer_cart:
         flash('Your cart is Empty')
         return redirect('/')
+
+    total = sum(item.product.current_price * item.quantity for item in customer_cart)
+
+    return render_template(
+        'choose_payment.html',
+        cart=customer_cart,
+        total=total,
+        format_option_summary=format_option_summary,
+        get_product_image=get_product_image,
+    )
+
+
+@views.route('/place-order', methods=['GET', 'POST'])
+@login_required
+def place_order():
+    if request.method == 'GET':
+        return redirect(url_for('views.choose_payment'))
+
+    customer_cart = Cart.query.filter_by(customer_link=current_user.id).all()
+    if not customer_cart:
+        flash('Your cart is Empty')
+        return redirect('/')
+
+    payment_method = request.form.get('payment_method', 'cashless')
 
     try:
         items_list = [
@@ -354,25 +459,44 @@ def place_order():
             for item in customer_cart
         ]
 
-        result = create_order_and_payment(current_user.id, items_list)
+        if payment_method == 'cash':
+            result = create_order_cash(current_user.id, items_list)
 
-        for item in customer_cart:
-            db.session.delete(item)
-        db.session.commit()
+            for item in customer_cart:
+                db.session.delete(item)
+            db.session.commit()
 
-        return render_template(
-            'payment_qr.html',
-            payment_intent_id=result['payment_intent_id'],
-            qr_image_url=result['qr_image_url'],
-            redirect_url=result['redirect_url'],
-            total=result['total'],
-            orders=Order.query.filter_by(payment_id=result['payment_intent_id']).all(),
-            format_option_summary=format_option_summary,
-            get_product_image=get_product_image,
-        )
+            orders = Order.query.filter_by(payment_id=result['order_group_id']).all()
+            print_cash_receipt(orders, result['total'])
+
+            return render_template(
+                'cash_receipt.html',
+                order_group_id=result['order_group_id'],
+                total=result['total'],
+                orders=orders,
+                format_option_summary=format_option_summary,
+                get_product_image=get_product_image,
+            )
+        else:
+            result = create_order_and_payment(current_user.id, items_list)
+
+            for item in customer_cart:
+                db.session.delete(item)
+            db.session.commit()
+
+            return render_template(
+                'payment_qr.html',
+                payment_intent_id=result['payment_intent_id'],
+                qr_image_url=result['qr_image_url'],
+                redirect_url=result['redirect_url'],
+                total=result['total'],
+                orders=Order.query.filter_by(payment_id=result['payment_intent_id']).all(),
+                format_option_summary=format_option_summary,
+                get_product_image=get_product_image,
+            )
     except Exception as e:
         db.session.rollback()
-        print('PayMongo error:', e)
+        print('Order error:', e)
         import traceback; traceback.print_exc()
         flash(f'Order not placed — {e}')
         return redirect('/')
@@ -494,8 +618,10 @@ def confirm_usual_order_frame():
         if usual_item.product.in_stock < usual_item.quantity:
             return jsonify({'ok': False, 'message': f'{usual_item.product.product_name} is currently out of stock.'}), 400
 
+    payment_method = payload.get('payment_method', 'cashless')
+
     try:
-        payment = create_order_and_payment(customer.id, [
+        usual_items_data = [
             {
                 'product': usual_item.product,
                 'quantity': usual_item.quantity,
@@ -505,14 +631,28 @@ def confirm_usual_order_frame():
                 'shot': usual_item.shot,
             }
             for usual_item in usual_items
-        ])
+        ]
 
-        return jsonify({
-            'ok': True,
-            'message': f'Order placed for {customer.username}. Proceed to payment.',
-            'recognized_name': recognized_name,
-            'redirect_url': url_for('views.usual_order_payment', pi_id=payment['payment_intent_id']),
-        })
+        if payment_method == 'cash':
+            result = create_order_cash(customer.id, usual_items_data)
+            orders = Order.query.filter_by(payment_id=result['order_group_id']).all()
+            print_cash_receipt(orders, result['total'])
+
+            return jsonify({
+                'ok': True,
+                'message': f'Cash order placed for {customer.username}. Please pay at the counter.',
+                'recognized_name': recognized_name,
+                'redirect_url': url_for('views.usual_order_cash_receipt', order_group_id=result['order_group_id']),
+            })
+        else:
+            payment = create_order_and_payment(customer.id, usual_items_data)
+
+            return jsonify({
+                'ok': True,
+                'message': f'Order placed for {customer.username}. Proceed to payment.',
+                'recognized_name': recognized_name,
+                'redirect_url': url_for('views.usual_order_payment', pi_id=payment['payment_intent_id']),
+            })
     except Exception as exc:
         db.session.rollback()
         print('Usual order payment error:', exc)
@@ -551,6 +691,27 @@ def usual_order_payment(pi_id):
         total=total,
         is_usual_order=True,
         orders=orders,
+        format_option_summary=format_option_summary,
+        get_product_image=get_product_image,
+    )
+
+
+@views.route('/usual-order/cash/<order_group_id>')
+def usual_order_cash_receipt(order_group_id):
+    """Cash receipt page for usual orders — no login required."""
+    orders = Order.query.filter_by(payment_id=order_group_id).all()
+    if not orders:
+        flash('No order found.')
+        return redirect('/')
+
+    total = sum(o.price * o.quantity for o in orders)
+
+    return render_template(
+        'cash_receipt.html',
+        order_group_id=order_group_id,
+        total=total,
+        orders=orders,
+        is_usual_order=True,
         format_option_summary=format_option_summary,
         get_product_image=get_product_image,
     )

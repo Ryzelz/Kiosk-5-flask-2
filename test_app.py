@@ -935,6 +935,13 @@ class TestFaceRecognitionFlow:
             data = resp.get_json()
             assert data['detected'] is False
 
+    def test_usual_order_page_shows_camera_switcher(self, client):
+        resp = client.get('/usual-order')
+        assert resp.status_code == 200
+        assert b'id="cameraSelect"' in resp.data
+        assert b'id="switchCameraButton"' in resp.data
+        assert b'Camera source' in resp.data
+
     def test_usual_order_confirm_no_trained_faces(self, client, app):
         with patch('website.views.recognize_face_from_frame_data') as mock_rec:
             mock_rec.return_value = {
@@ -1022,6 +1029,132 @@ class TestFaceRecognitionFlow:
             resp = client.get('/usual-order/payment/pi_usual_page')
             assert resp.status_code == 200
             assert b'QR123' in resp.data
+
+
+class TestPaymentMethodSelection:
+    """Tests for cash vs cashless payment method feature."""
+
+    def test_choose_payment_page_renders(self, client, normal_user, sample_product):
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        client.post(f'/add-to-cart/{sample_product}', data={
+            'quantity': '1', 'size': 'Small', 'sugar': '', 'milk': '', 'shot': ''
+        })
+        resp = client.get('/choose-payment')
+        assert resp.status_code == 200
+        assert b'Cash' in resp.data
+        assert b'Cashless' in resp.data
+        assert b'How would you like to pay' in resp.data
+
+    def test_choose_payment_empty_cart_redirects(self, client, normal_user):
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        resp = client.get('/choose-payment', follow_redirects=True)
+        assert resp.status_code == 200
+
+    def test_place_order_cash(self, client, app, normal_user, sample_product):
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        client.post(f'/add-to-cart/{sample_product}', data={
+            'quantity': '1', 'size': 'Small', 'sugar': '', 'milk': '', 'shot': ''
+        })
+        resp = client.post('/place-order', data={'payment_method': 'cash'})
+        assert resp.status_code == 200
+        assert b'Cash' in resp.data or b'cash' in resp.data
+        assert b'Pay' in resp.data or b'pay' in resp.data
+
+        from website.models import Order
+        with app.app_context():
+            orders = Order.query.filter_by(customer_link=uid).all()
+            cash_orders = [o for o in orders if o.payment_method == 'cash']
+            assert len(cash_orders) >= 1
+            assert cash_orders[0].payment_id.startswith('cash-')
+
+    @patch('website.views.create_payment_intent')
+    @patch('website.views.attach_qrph')
+    def test_place_order_cashless(self, mock_attach, mock_create_pi,
+                                   client, app, normal_user, sample_product):
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        client.post(f'/add-to-cart/{sample_product}', data={
+            'quantity': '1', 'size': 'Small', 'sugar': '', 'milk': '', 'shot': ''
+        })
+
+        mock_create_pi.return_value = {'id': 'pi_cashless_test'}
+        mock_attach.return_value = {'attributes': {'next_action': {
+            'type': 'consume_qr',
+            'code': {'image_url': 'data:image/png;base64,QRTEST'}
+        }}}
+
+        resp = client.post('/place-order', data={'payment_method': 'cashless'})
+        assert resp.status_code == 200
+        assert b'QRTEST' in resp.data
+
+    def test_place_order_get_redirects_to_choose(self, client, normal_user):
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        resp = client.get('/place-order')
+        assert resp.status_code == 302
+
+    def test_usual_order_page_shows_payment_toggle(self, client):
+        resp = client.get('/usual-order')
+        assert resp.status_code == 200
+        assert b'paymentMethodToggle' in resp.data
+        assert b'data-method="cash"' in resp.data
+        assert b'data-method="cashless"' in resp.data
+
+    def test_usual_order_cash_confirm(self, client, app, db, normal_user, sample_product):
+        uid, email, pw = normal_user
+        from website.models import Customer
+        with app.app_context():
+            customer = Customer.query.get(uid)
+            customer.usual_product_id = sample_product
+            db.session.commit()
+            username = customer.username
+
+        with patch('website.views.recognize_face_from_frame_data') as mock_rec:
+            mock_rec.return_value = {
+                'ok': True,
+                'recognized_name': username,
+                'confidence': 95.0,
+                'message': f'Confirmed {username}.'
+            }
+            resp = client.post('/usual-order/confirm-frame', json={
+                'frame': 'data:image/jpeg;base64,abc',
+                'payment_method': 'cash'
+            })
+            assert resp.status_code == 200
+            data = resp.get_json()
+            assert data['ok'] is True
+            assert '/usual-order/cash/' in data['redirect_url']
+
+    def test_usual_order_cash_receipt_page(self, client, app, db, normal_user, sample_product):
+        uid, email, pw = normal_user
+        from website.models import Order
+        with app.app_context():
+            o = Order()
+            o.quantity = 1
+            o.size = 'Small'
+            o.sugar = ''
+            o.milk = ''
+            o.shot = ''
+            o.price = 150
+            o.status = 'Pending'
+            o.payment_method = 'cash'
+            o.payment_id = 'cash-testreceipt'
+            o.customer_link = uid
+            o.product_link = sample_product
+            db.session.add(o)
+            db.session.commit()
+
+        resp = client.get('/usual-order/cash/cash-testreceipt')
+        assert resp.status_code == 200
+        assert b'Cash' in resp.data or b'cash' in resp.data
+        assert b'150' in resp.data
+
+    def test_cash_receipt_page_not_found(self, client):
+        resp = client.get('/usual-order/cash/nonexistent-id', follow_redirects=True)
+        assert resp.status_code == 200
 
 
 # ===========================================================================
