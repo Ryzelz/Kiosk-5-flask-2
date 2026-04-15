@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, FloatField, PasswordField, EmailField, BooleanField, SubmitField, SelectField
-from wtforms.validators import DataRequired, length, NumberRange
+from wtforms.validators import DataRequired, InputRequired, Optional, length, NumberRange
 from flask_wtf.file import FileField, FileRequired
 
 
@@ -25,16 +25,38 @@ class PasswordChangeForm(FlaskForm):
     change_password = SubmitField('Change Password')
 
 
+class UsualOrderForm(FlaskForm):
+    usual_product = SelectField('Choose your usual order', coerce=int, validators=[DataRequired()])
+    save_usual = SubmitField('Save usual')
+
+
 class ShopItemsForm(FlaskForm):
     product_name = StringField('Name of Product', validators=[DataRequired()])
     current_price = FloatField('Current Price', validators=[DataRequired()])
     previous_price = FloatField('Previous Price', validators=[DataRequired()])
-    in_stock = IntegerField('In Stock', validators=[DataRequired(), NumberRange(min=0)])
+    in_stock = IntegerField('In Stock', validators=[InputRequired(), NumberRange(min=0)])
+    sugar = IntegerField('Sugar Options', validators=[InputRequired(), NumberRange(min=0)])
+    milk = IntegerField('Milk Options', validators=[InputRequired(), NumberRange(min=0)])
+    shot = IntegerField('Shot Options', validators=[InputRequired(), NumberRange(min=0)])
     product_picture = FileField('Product Picture', validators=[DataRequired()])
     flash_sale = BooleanField('Flash Sale')
 
     add_product = SubmitField('Add Product')
     update_product = SubmitField('Update')
+
+
+class UpdateShopItemsForm(FlaskForm):
+    product_name = StringField('Name of Product', validators=[Optional()])
+    current_price = FloatField('Current Price', validators=[Optional(), NumberRange(min=0)])
+    previous_price = FloatField('Previous Price', validators=[Optional(), NumberRange(min=0)])
+    in_stock = IntegerField('In Stock', validators=[Optional(), NumberRange(min=0)])
+    sugar = IntegerField('Sugar Options', validators=[Optional(), NumberRange(min=0)])
+    milk = IntegerField('Milk Options', validators=[Optional(), NumberRange(min=0)])
+    shot = IntegerField('Shot Options', validators=[Optional(), NumberRange(min=0)])
+    product_picture = FileField('Product Picture')
+    flash_sale = BooleanField('Flash Sale')
+
+    update_product = SubmitField('Save Changes')
 
 
 class OrderForm(FlaskForm):

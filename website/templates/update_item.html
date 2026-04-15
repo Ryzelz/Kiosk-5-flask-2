@@ -1,40 +1,204 @@
 {% extends 'base.html' %}
 
-{% block title %} Add Shop Items {% endblock %}
+{% block title %} Update Item {% endblock %}
 
 
 {% block body %}
+<div class="wideye-shell py-4">
+    <style>
+        .wideye-update-layout {
+            display: grid;
+            grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+            gap: 24px;
+        }
 
-<table class="table table-dark table-hover">
-    <thead>
-        <tr>
-            <th scope="col">Product Name</th>
-            <th scope="col">Previous Price</th>
-            <th scope="col">Current Price</th>
-            <th scope="col">In Stock</th>
-            <th scope="col">Picture</th>
-            <th scope="col">Flash Sale</th>
-            <th scope="col">Add</th>
+        .wideye-update-card,
+        .wideye-update-form {
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 22px;
+        }
 
-        </tr>
-    </thead>
+        .wideye-update-card img {
+            width: 100%;
+            height: 260px;
+            object-fit: cover;
+            border-radius: 14px;
+            margin-bottom: 16px;
+        }
 
-    <tbody>
-        <tr>
-            <form action="" method="POST", enctype="multipart/form-data">
+        .wideye-update-meta {
+            display: grid;
+            gap: 12px;
+        }
+
+        .wideye-update-meta-item {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 12px 14px;
+        }
+
+        .wideye-update-label {
+            display: block;
+            color: #94a2bc;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+        }
+
+        .wideye-update-value {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .wideye-update-copy {
+            color: #a8b4cc;
+        }
+
+        .wideye-update-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .wideye-update-grid .full {
+            grid-column: 1 / -1;
+        }
+
+        .wideye-update-input,
+        .wideye-update-input:focus {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            color: #ffffff;
+            padding: 11px 14px;
+            box-shadow: none;
+        }
+
+        .wideye-update-file {
+            width: 100%;
+            color: #d7dcee;
+        }
+
+        .wideye-update-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .wideye-update-primary {
+            border: none;
+            border-radius: 999px;
+            padding: 11px 18px;
+            font-weight: 700;
+            background: #ffbf2f;
+            color: #111827;
+        }
+
+        .wideye-update-secondary {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            padding: 11px 18px;
+            color: #ffffff;
+        }
+
+        @media (max-width: 991.98px) {
+            .wideye-update-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .wideye-update-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Update Item</h1>
+        <p class="wideye-update-copy mb-0">Edit only what you want to change. The current image stays in place unless you upload a new one.</p>
+    </div>
+
+    <div class="wideye-update-layout">
+        <aside class="wideye-update-card">
+            <img src="{{ item.product_picture }}" alt="{{ item.product_name }}">
+            <h2 class="h5 mb-1">{{ item.product_name }}</h2>
+            <p class="text-secondary mb-3">Product #{{ item.id }}</p>
+
+            <div class="wideye-update-meta">
+                <div class="wideye-update-meta-item">
+                    <span class="wideye-update-label">Current Price</span>
+                    <span class="wideye-update-value">PhP {{ item.current_price }}</span>
+                </div>
+                <div class="wideye-update-meta-item">
+                    <span class="wideye-update-label">Previous Price</span>
+                    <span class="wideye-update-value">PhP {{ item.previous_price }}</span>
+                </div>
+                <div class="wideye-update-meta-item">
+                    <span class="wideye-update-label">Inventory</span>
+                    <span class="wideye-update-value">{{ item.in_stock }} in stock</span>
+                </div>
+                <div class="wideye-update-meta-item">
+                    <span class="wideye-update-label">Add-on Limits</span>
+                    <span class="wideye-update-value">Sugar {{ item.sugar }} • Milk {{ item.milk }} • Shot {{ item.shot }}</span>
+                </div>
+            </div>
+        </aside>
+
+        <section class="wideye-update-form">
+            <form action="" method="POST" enctype="multipart/form-data">
                 {{ form.hidden_tag() }}
 
-                <td>{{ form.product_name }}</td>
-                <td>{{ form.previous_price }}</td>
-                <td>{{ form.current_price }}</td>
-                <td>{{ form.in_stock }}</td>
-                <td>{{ form.product_picture() }}</td>
-                <td>{{ form.flash_sale }}</td>
-                <td>{{ form.update_product() }}</td>
+                <div class="wideye-update-grid">
+                    <div>
+                        <label class="form-label">{{ form.product_name.label.text }}</label>
+                        {{ form.product_name(class="wideye-update-input") }}
+                    </div>
+                    <div>
+                        <label class="form-label">{{ form.in_stock.label.text }}</label>
+                        {{ form.in_stock(class="wideye-update-input") }}
+                    </div>
+                    <div>
+                        <label class="form-label">{{ form.previous_price.label.text }}</label>
+                        {{ form.previous_price(class="wideye-update-input") }}
+                    </div>
+                    <div>
+                        <label class="form-label">{{ form.current_price.label.text }}</label>
+                        {{ form.current_price(class="wideye-update-input") }}
+                    </div>
+                    <div>
+                        <label class="form-label">{{ form.sugar.label.text }}</label>
+                        {{ form.sugar(class="wideye-update-input") }}
+                    </div>
+                    <div>
+                        <label class="form-label">{{ form.milk.label.text }}</label>
+                        {{ form.milk(class="wideye-update-input") }}
+                    </div>
+                    <div>
+                        <label class="form-label">{{ form.shot.label.text }}</label>
+                        {{ form.shot(class="wideye-update-input") }}
+                    </div>
+                    <div class="d-flex align-items-center gap-2 pt-4">
+                        {{ form.flash_sale(class="form-check-input mt-0") }}
+                        <label class="form-check-label">{{ form.flash_sale.label.text }}</label>
+                    </div>
+                    <div class="full">
+                        <label class="form-label">{{ form.product_picture.label.text }}</label>
+                        {{ form.product_picture(class="wideye-update-file") }}
+                        <small class="text-secondary d-block mt-2">Leave this empty if you want to keep the current product picture.</small>
+                    </div>
+                </div>
+
+                <div class="wideye-update-actions">
+                    {{ form.update_product(class="wideye-update-primary") }}
+                    <a href="/shop-items" class="wideye-update-secondary">Back to Shop Items</a>
+                </div>
             </form>
-        </tr>
-    </tbody>
-</table>
-
-
+        </section>
+    </div>
+</div>
 {% endblock %}

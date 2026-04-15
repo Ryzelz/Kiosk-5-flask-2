@@ -131,6 +131,34 @@
         .wideye-footer a {
             color: #ffffff;
         }
+
+        .wideye-action-strip {
+            background: #0f1725;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 16px 18px;
+        }
+
+        .wideye-action-title {
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .wideye-action-copy {
+            color: #a8b4cc;
+            margin-bottom: 0;
+        }
+
+        .wideye-action-button {
+            border: none;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-weight: 700;
+            background: #ffbf2f;
+            color: #111827;
+        }
     </style>
 
     <title>Wideye | {% block title %}{% endblock %}</title>
@@ -210,5 +238,6 @@
     <script src="{{ url_for('static', filename='js/all.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
     <script src="{{ url_for('static', filename='js/myScript.js') }}"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

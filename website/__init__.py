@@ -1,9 +1,19 @@
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from sqlalchemy import inspect, text
+
+load_dotenv()
 
 
 db = SQLAlchemy()
+BASE_DIR = Path(__file__).resolve().parent.parent
+INSTANCE_DIR = BASE_DIR / 'instance'
+MEDIA_DIR = BASE_DIR / 'media'
 DB_NAME = 'database.sqlite3'
 
 
@@ -12,10 +22,130 @@ def create_database():
     print('Database Created')
 
 
+def sync_customer_schema():
+    inspector = inspect(db.engine)
+
+    if not inspector.has_table('customer'):
+        return
+
+    existing_columns = {column['name'] for column in inspector.get_columns('customer')}
+    statements = []
+
+    if 'face_profile_name' not in existing_columns:
+        statements.append('ALTER TABLE customer ADD COLUMN face_profile_name VARCHAR(100)')
+
+    if 'usual_product_id' not in existing_columns:
+        statements.append('ALTER TABLE customer ADD COLUMN usual_product_id INTEGER')
+
+    with db.engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+        connection.execute(text(
+            'UPDATE customer SET face_profile_name = username '
+            'WHERE face_profile_name IS NULL OR TRIM(face_profile_name) = ""'
+        ))
+
+
+def sync_product_schema():
+    inspector = inspect(db.engine)
+
+    if not inspector.has_table('product'):
+        return
+
+    existing_columns = {column['name'] for column in inspector.get_columns('product')}
+    statements = []
+
+    if 'sugar' not in existing_columns:
+        statements.append('ALTER TABLE product ADD COLUMN sugar INTEGER DEFAULT 0 NOT NULL')
+
+    if 'milk' not in existing_columns:
+        statements.append('ALTER TABLE product ADD COLUMN milk INTEGER DEFAULT 0 NOT NULL')
+
+    if 'shot' not in existing_columns:
+        statements.append('ALTER TABLE product ADD COLUMN shot INTEGER DEFAULT 0 NOT NULL')
+
+    with db.engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+        connection.execute(text(
+            'UPDATE product SET sugar = COALESCE(sugar, 0), milk = COALESCE(milk, 0), shot = COALESCE(shot, 0)'
+        ))
+
+
+def sync_cart_schema():
+    inspector = inspect(db.engine)
+
+    if not inspector.has_table('cart'):
+        return
+
+    existing_columns = {column['name'] for column in inspector.get_columns('cart')}
+    statements = []
+
+    if 'sugar' not in existing_columns:
+        statements.append('ALTER TABLE cart ADD COLUMN sugar INTEGER DEFAULT 0 NOT NULL')
+
+    if 'milk' not in existing_columns:
+        statements.append('ALTER TABLE cart ADD COLUMN milk INTEGER DEFAULT 0 NOT NULL')
+
+    if 'shot' not in existing_columns:
+        statements.append('ALTER TABLE cart ADD COLUMN shot INTEGER DEFAULT 0 NOT NULL')
+
+    with db.engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+        connection.execute(text(
+            'UPDATE cart SET sugar = COALESCE(sugar, 0), milk = COALESCE(milk, 0), shot = COALESCE(shot, 0)'
+        ))
+
+
+def sync_order_schema():
+    inspector = inspect(db.engine)
+
+    if not inspector.has_table('order'):
+        return
+
+    existing_columns = {column['name'] for column in inspector.get_columns('order')}
+    statements = []
+
+    if 'payment_id' not in existing_columns:
+        statements.append('ALTER TABLE "order" ADD COLUMN payment_id VARCHAR(1000) DEFAULT \'legacy-order\' NOT NULL')
+
+    if 'sugar' not in existing_columns:
+        statements.append('ALTER TABLE "order" ADD COLUMN sugar INTEGER DEFAULT 0 NOT NULL')
+
+    if 'milk' not in existing_columns:
+        statements.append('ALTER TABLE "order" ADD COLUMN milk INTEGER DEFAULT 0 NOT NULL')
+
+    if 'shot' not in existing_columns:
+        statements.append('ALTER TABLE "order" ADD COLUMN shot INTEGER DEFAULT 0 NOT NULL')
+
+    with db.engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+        connection.execute(text(
+            'UPDATE "order" SET payment_id = COALESCE(NULLIF(TRIM(payment_id), \'\'), \'legacy-order\')'
+        ))
+
+        connection.execute(text(
+            'UPDATE "order" SET sugar = COALESCE(sugar, 0), milk = COALESCE(milk, 0), shot = COALESCE(shot, 0)'
+        ))
+
+
 def create_app():
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = 'hbnwdvbn ajnbsjn ahe'
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_NAME}'
+    INSTANCE_DIR.mkdir(exist_ok=True)
+    MEDIA_DIR.mkdir(exist_ok=True)
+
+    default_database_uri = f'sqlite:///{(INSTANCE_DIR / DB_NAME).as_posix()}'
+
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'hbnwdvbn ajnbsjn ahe')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', default_database_uri)
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['MEDIA_DIR'] = str(MEDIA_DIR)
 
     db.init_app(app)
 
@@ -40,8 +170,12 @@ def create_app():
     app.register_blueprint(auth, url_prefix='/') # localhost:5000/auth/change-password
     app.register_blueprint(admin, url_prefix='/')
 
-    # with app.app_context():
-    #     create_database()
+    with app.app_context():
+        db.create_all()
+        sync_customer_schema()
+        sync_product_schema()
+        sync_cart_schema()
+        sync_order_schema()
 
     return app
 

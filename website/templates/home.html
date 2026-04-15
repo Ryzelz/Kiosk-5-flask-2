@@ -27,6 +27,24 @@
             margin-bottom: 18px;
         }
 
+        .wideye-usual-wrap {
+            margin-bottom: 24px;
+        }
+
+        .wideye-usual-strip {
+            text-align: center;
+        }
+
+        .wideye-usual-copy {
+            max-width: 640px;
+        }
+
+        .wideye-usual-button {
+            width: min(100%, 260px);
+            display: inline-flex;
+            justify-content: center;
+        }
+
         .wideye-filter-link {
             color: #687287;
             font-size: 0.95rem;
@@ -88,13 +106,29 @@
         }
 
         .wideye-color-dot {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.75);
-            background: #263246;
-            display: inline-block;
-            margin-top: 4px;
+            display: none;
+        }
+
+        .wideye-option-select,
+        .wideye-option-select:disabled {
+            width: 100%;
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            color: #ffffff;
+            font-size: 0.82rem;
+            padding: 6px 10px;
+            color-scheme: dark;
+        }
+
+        .wideye-option-select:disabled {
+            color: #7a869d;
+            opacity: 0.75;
+        }
+
+        .wideye-option-select option {
+            background: #121a29;
+            color: #ffffff;
         }
 
         .wideye-add-link {
@@ -102,10 +136,12 @@
             font-weight: 600;
             background: #24324b;
             border-radius: 999px;
-            padding: 8px 16px;
-            display: inline-flex;
+            padding: 10px 16px;
+            display: flex;
             align-items: center;
             justify-content: center;
+            width: min(100%, 220px);
+            margin: 0 auto;
         }
 
         @media (max-width: 767.98px) {
@@ -129,6 +165,16 @@
         </div>
     </section>
 
+    <section class="wideye-usual-wrap">
+        <div class="wideye-action-strip wideye-usual-strip d-flex flex-column align-items-center gap-3">
+            <div>
+                <div class="wideye-action-title">Self ordering</div>
+                <p class="wideye-action-copy wideye-usual-copy mx-auto">Open the usual-order camera page, look at the webcam, then confirm to add your saved usual item to the cart.</p>
+            </div>
+            <a href="{{ url_for('views.usual_order') }}" class="wideye-action-button wideye-usual-button">Usual</a>
+        </div>
+    </section>
+
     {% if item_list | length < 1 %}
     <div class="text-center py-5">
         <h3>No shop items available.</h3>
@@ -145,6 +191,10 @@
                         Premium Wideye selection with rich flavor notes and carefully prepared presentation.
                     </p>
 
+                    {% set sugar_limit = [item.sugar, 5] | min %}
+                    {% set milk_limit = [item.milk, 5] | min %}
+                    {% set shot_limit = [item.shot, 5] | min %}
+                    <form action="/add-to-cart/{{ item.id }}" method="POST">
                     <div class="row g-3 align-items-end">
                         <div class="col-7">
                             <label class="wideye-meta-label">Size</label>
@@ -161,18 +211,45 @@
                             </div>
                         </div>
                         <div class="col-5">
-                            <label class="wideye-meta-label">Color</label>
-                            <span class="wideye-color-dot"></span>
+                            <label class="wideye-meta-label">Sugar</label>
+                            <select class="wideye-option-select" name="sugar" {% if sugar_limit == 0 %}disabled{% endif %}>
+                                {% for option in range(0, sugar_limit + 1) %}
+                                <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="wideye-meta-label">Milk</label>
+                            <select class="wideye-option-select" name="milk" {% if milk_limit == 0 %}disabled{% endif %}>
+                                {% for option in range(0, milk_limit + 1) %}
+                                <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="wideye-meta-label">Shot</label>
+                            <select class="wideye-option-select" name="shot" {% if shot_limit == 0 %}disabled{% endif %}>
+                                {% for option in range(0, shot_limit + 1) %}
+                                <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="wideye-meta-label">Add-ons</label>
+                            <div class="wideye-meta-value">
+                                {{ format_option_summary(item) }}
+                            </div>
                         </div>
                     </div>
 
-                    <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
+                    <div class="d-flex flex-column align-items-center gap-3 mt-3">
                         <div>
                             <div class="fw-bold">PhP {{ item.current_price }}</div>
                             <small class="text-secondary"><s>PhP {{ item.previous_price }}</s></small>
                         </div>
-                        <a class="wideye-add-link" href="/add-to-cart/{{ item.id }}">Add to cart</a>
+                        <button class="wideye-add-link border-0" type="submit">Add to cart</button>
                     </div>
+                    </form>
                 </div>
             </div>
         </div>

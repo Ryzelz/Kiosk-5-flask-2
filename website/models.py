@@ -9,10 +9,13 @@ class Customer(db.Model, UserMixin):
     email = db.Column(db.String(100), unique=True)
     username = db.Column(db.String(100))
     password_hash = db.Column(db.String(150))
+    face_profile_name = db.Column(db.String(100))
+    usual_product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
     date_joined = db.Column(db.DateTime(), default=datetime.utcnow)
 
     cart_items = db.relationship('Cart', backref=db.backref('customer', lazy=True))
     orders = db.relationship('Order', backref=db.backref('customer', lazy=True))
+    usual_product = db.relationship('Product', foreign_keys=[usual_product_id])
 
     @property
     def password(self):
@@ -35,6 +38,9 @@ class Product(db.Model):
     current_price = db.Column(db.Float, nullable=False)
     previous_price = db.Column(db.Float, nullable=False)
     in_stock = db.Column(db.Integer, nullable=False)
+    sugar = db.Column(db.Integer, nullable=False, default=0)
+    milk = db.Column(db.Integer, nullable=False, default=0)
+    shot = db.Column(db.Integer, nullable=False, default=0)
     product_picture = db.Column(db.String(1000), nullable=False)
     flash_sale = db.Column(db.Boolean, default=False)
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
@@ -49,6 +55,9 @@ class Product(db.Model):
 class Cart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
+    sugar = db.Column(db.Integer, nullable=False, default=0)
+    milk = db.Column(db.Integer, nullable=False, default=0)
+    shot = db.Column(db.Integer, nullable=False, default=0)
 
     customer_link = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
     product_link = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
@@ -62,6 +71,9 @@ class Cart(db.Model):
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
+    sugar = db.Column(db.Integer, nullable=False, default=0)
+    milk = db.Column(db.Integer, nullable=False, default=0)
+    shot = db.Column(db.Integer, nullable=False, default=0)
     price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(100), nullable=False)
     payment_id = db.Column(db.String(1000), nullable=False)

@@ -7,91 +7,143 @@
 
 {% set item_list = items | default([], true) | list %}
 
-<style>
-    .search-grid {
-        margin-top: 12px;
-    }
+<div class="wideye-shell py-4">
+    <style>
+        .wideye-search-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 18px;
+        }
 
-    .search-card {
-        background: #121a29;
-        border-radius: 12px;
-        padding: 16px;
-        height: 100%;
-        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
-    }
+        .wideye-search-card {
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+            transition: border-color 0.2s, transform 0.2s;
+        }
 
-    .search-card img {
-        height: 202px;
-        width: 180px;
-        border-radius: 10px;
-        object-fit: cover;
-    }
+        .wideye-search-card:hover {
+            border-color: rgba(255, 255, 255, 0.18);
+            transform: translateY(-4px);
+        }
 
-    .search-name {
-        color: #eef2fb;
-        margin-top: 10px;
-    }
+        .wideye-search-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
 
-    .search-stock {
-        color: #a8b4cc;
-        margin-top: 10px;
-    }
+        .wideye-search-body {
+            padding: 16px;
+        }
 
-    .search-add {
-        color: #ffffff;
-        background: #24324b;
-        border-radius: 999px;
-        padding: 8px 16px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-</style>
+        .wideye-search-name {
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
 
-{% if item_list | length < 1 %}
-<h3 style="color: white;">No Items Match your Search query</h3>
+        .wideye-search-stock {
+            color: #94a2bc;
+            font-size: 0.82rem;
+            margin-bottom: 12px;
+        }
 
-{% else %}
+        .wideye-search-prices {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
 
+        .wideye-search-current {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
 
-<div class="container text-center search-grid">
-    <div class="row g-4" id="column">
+        .wideye-search-previous {
+            color: #94a2bc;
+            font-size: 0.85rem;
+            text-decoration: line-through;
+        }
 
-        {% for item in item_list %}
+        .wideye-search-add {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 10px 0;
+            border-radius: 999px;
+            background: #ffbf2f;
+            color: #111827;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
 
-        <div class="col">
-            <div class="search-card">
-            <img src="{{ item.product_picture }}" alt="">
+        .wideye-search-empty {
+            text-align: center;
+            padding: 48px 0;
+        }
 
-            <div class="row" style="margin-top: 5px;">
-                <h6 class="search-name">{{ item.product_name }}</h6>
-            </div>
+        .wideye-search-empty-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            color: #94a2bc;
+            margin-bottom: 16px;
+        }
+    </style>
 
-            <div class="row" style="margin-top: 10px;">
-            
-                <div class="col">
-
-                    <h5 style="font-weight: 600; font-family: 'Times New Roman', Times, serif;">PhP {{ item.current_price }}</h5>
-                    <strike><p style="color: #a8b4cc;">PhP {{ item.previous_price}}</p></strike>
-                </div>
-
-                <div class="col">
-                    <a class="search-add" href="/add-to-cart/{{ item.id }}">Add</a>
-                </div>
-            
-            </div>
-
-            <div class="row">
-                <p class="search-stock">{{ item.in_stock }} Items Left</p>
-            </div>
-            </div>
-        </div>
-    
-        {% endfor %}
-
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Search Results</h1>
+        <p style="color:#a8b4cc;" class="mb-0">
+            {% if item_list | length > 0 %}
+                {{ item_list | length }} item{{ 's' if item_list | length != 1 }} found.
+            {% else %}
+                No items match your query.
+            {% endif %}
+        </p>
     </div>
-</div>
 
-{% endif %}
+    {% if item_list | length < 1 %}
+    <div class="wideye-search-empty">
+        <div class="wideye-search-empty-icon">
+            <i class="bi bi-search"></i>
+        </div>
+        <h3 class="h5 mb-2">Nothing found</h3>
+        <p style="color:#94a2bc;">Try a different keyword or browse the shop.</p>
+        <a href="/" style="color:#ffbf2f;font-weight:600;">Go to Home</a>
+    </div>
+    {% else %}
+    <div class="wideye-search-grid">
+        {% for item in item_list %}
+        <article class="wideye-search-card">
+            <img src="{{ item.product_picture }}" alt="{{ item.product_name }}">
+            <div class="wideye-search-body">
+                <h2 class="wideye-search-name">{{ item.product_name }}</h2>
+                <p class="wideye-search-stock">{{ item.in_stock }} in stock</p>
+                <div class="wideye-search-prices">
+                    <span class="wideye-search-current">PhP {{ item.current_price }}</span>
+                    <span class="wideye-search-previous">PhP {{ item.previous_price }}</span>
+                </div>
+                <a class="wideye-search-add" href="/add-to-cart/{{ item.id }}">
+                    <i class="bi bi-bag-plus me-1"></i> Add to Cart
+                </a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
 
 {% endblock %}

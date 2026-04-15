@@ -6,6 +6,60 @@
 {% block body %}
 
 <div class="container my-5">
+    <style>
+        .wideye-profile-card {
+            background-color: white;
+            border-radius: 18px;
+            margin-top: 20px;
+            color: #09111f;
+            padding: 18px;
+        }
+
+        .wideye-profile-meta {
+            margin-bottom: 8px;
+            color: #526079;
+        }
+
+        .wideye-profile-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .wideye-face-card {
+            border: 1px solid #e4e9f3;
+            border-radius: 14px;
+            padding: 16px;
+            background: #f8faff;
+        }
+
+        .wideye-face-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 12px;
+        }
+
+        .wideye-face-sample {
+            text-align: center;
+        }
+
+        .wideye-face-sample img {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid #d9e2f1;
+            background: #edf2fb;
+        }
+
+        .wideye-face-caption {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.76rem;
+            color: #61708a;
+        }
+    </style>
     <div class="row">
         <h3 style="color: white;">Welcome <span class="text-capitalize">{{ customer.username }}</span></h3>
 
@@ -19,14 +73,66 @@
         
         </div>
 
-        <div class="col-sm-5 offset-sm-1" style="background-color: white; border-radius: 18px; margin-top: 20px;">
+        <div class="col-sm-6 offset-sm-1 wideye-profile-card">
             <div class="row">
 
-                <div class="col-sm-8">
-                    <div class="card m-2">
+                <div class="col-sm-12">
+                    <div class="card m-2 border-0">
+                        <div class="card-body">
+                            <h3>{{ customer.username }}</h3>
+                            <p>Email: {{ customer.email }}</p>
+                            <p class="wideye-profile-meta">
+                                <strong>Saved usual:</strong>
+                                {% if customer.usual_product %}
+                                {{ customer.usual_product.product_name }}
+                                {% else %}
+                                No usual order saved yet
+                                {% endif %}
+                            </p>
+                            <p class="wideye-profile-meta">
+                                <strong>Face label:</strong> {{ customer.face_profile_name or customer.username }}
+                            </p>
+                            <p class="wideye-profile-meta mb-3">
+                                The kiosk camera must recognize this name before it can place your saved usual order.
+                            </p>
 
-                        <h3>{{ customer.username }}</h3>
-                        <p>Email: {{ customer.email }}</p>
+                            <div class="wideye-profile-actions">
+                                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#usualOrderEditor" aria-expanded="{% if form.errors %}true{% else %}false{% endif %}" aria-controls="usualOrderEditor">
+                                    Edit usual
+                                </button>
+                                <a class="btn btn-dark" href="{{ url_for('auth.train_usual_face', customer_id=customer.id) }}">Maker order faster</a>
+                            </div>
+
+                            <div class="collapse mt-3 {% if form.errors %}show{% endif %}" id="usualOrderEditor">
+                                <form method="POST">
+                                    {{ form.hidden_tag() }}
+                                    <div class="mb-3">
+                                        {{ form.usual_product.label(class="form-label") }}
+                                        {{ form.usual_product(class="form-select") }}
+                                    </div>
+                                    {{ form.save_usual(class="btn btn-dark") }}
+                                </form>
+                            </div>
+
+                            <div class="wideye-face-card mt-4">
+                                <h5>Saved face samples</h5>
+                                <p class="wideye-profile-meta">
+                                    Open the camera page, then capture the required samples for center, face left, face right, and blink.
+                                </p>
+                                {% if face_images %}
+                                <div class="wideye-face-grid">
+                                    {% for image_name in face_images %}
+                                    <div class="wideye-face-sample">
+                                        <img src="{{ url_for('auth.profile_face_image', customer_id=customer.id, filename=image_name) }}" alt="Saved face sample {{ loop.index }}">
+                                        <span class="wideye-face-caption">{{ image_name.rsplit('.', 1)[0].replace('_', ' ') }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="mb-0">No face samples saved yet. Train your profile to make the usual order faster.</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
