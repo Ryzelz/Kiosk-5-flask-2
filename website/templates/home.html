@@ -35,14 +35,21 @@
             text-align: center;
         }
 
+        .wideye-usual-title {
+            font-size: clamp(1.75rem, 3.6vw, 2.6rem);
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
         .wideye-usual-copy {
             max-width: 640px;
         }
 
         .wideye-usual-button {
-            width: min(100%, 260px);
+            width: min(100%, 720px);
             display: inline-flex;
             justify-content: center;
+            margin: 0 auto;
         }
 
         .wideye-filter-link {
@@ -158,10 +165,9 @@
     <section class="wideye-usual-wrap">
         <div class="wideye-action-strip wideye-usual-strip d-flex flex-column align-items-center gap-3">
             <div>
-                <div class="wideye-action-title">Self ordering</div>
-                <p class="wideye-action-copy wideye-usual-copy mx-auto">Open the usual-order camera page, look at the webcam, then confirm to add your saved usual item to the cart.</p>
+                <div class="wideye-action-title wideye-usual-title">Self order kiosk - Wideye</div>
             </div>
-            <a href="{{ url_for('views.usual_order') }}" class="wideye-action-button wideye-usual-button">Usual</a>
+            <a href="{{ url_for('views.usual_order') }}" class="wideye-action-button wideye-usual-button">The usual</a>
         </div>
     </section>
 

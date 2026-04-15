@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block body %}
+<div class="wideye-shell py-4">
+    <style>
+        .wideye-camera-page {
+            display: grid;
+            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+        }
+
+        .wideye-camera-card,
+        .wideye-camera-side {
+            background: #0f1725;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 22px;
+        }
+
+        .wideye-camera-feed {
+            width: 100%;
+            background: #000000;
+            border-radius: 16px;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            display: block;
+        }
+
+        .wideye-camera-frame {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000000;
+        }
+
+        .wideye-face-guide {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .wideye-face-guide-box {
+            width: min(42%, 260px);
+            aspect-ratio: 3 / 4;
+            border: 3px solid rgba(255, 191, 47, 0.95);
+            border-radius: 24px;
+            box-shadow: 0 0 0 9999px rgba(6, 11, 23, 0.34);
+            position: relative;
+        }
+
+        .wideye-face-guide-box::before,
+        .wideye-face-guide-box::after {
+            content: "";
+            position: absolute;
+            inset: 14px;
+            border-radius: 18px;
+            border: 1px dashed rgba(255, 255, 255, 0.35);
+        }
+
+        .wideye-face-guide-label {
+            position: absolute;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.64);
+            color: #ffffff;
+            font-size: 0.88rem;
+            padding: 6px 12px;
+            border-radius: 999px;
+            letter-spacing: 0.01em;
+            max-width: calc(100% - 24px);
+            white-space: nowrap;
+        }
+
+        .wideye-camera-overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .wideye-camera-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .wideye-camera-secondary {
+            background: transparent;
+            color: #f6f7fb;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .wideye-camera-status {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #d7dcee;
+            min-height: 48px;
+        }
+
+        .wideye-step-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .wideye-step-item {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .wideye-step-item.active {
+            border-color: rgba(255, 191, 47, 0.6);
+            background: rgba(255, 191, 47, 0.08);
+        }
+
+        .wideye-step-item.done {
+            border-color: rgba(55, 215, 146, 0.5);
+            background: rgba(55, 215, 146, 0.08);
+        }
+
+        .wideye-step-meta {
+            color: #a8b4cc;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 575.98px) {
+            .wideye-face-guide-label {
+                white-space: normal;
+                text-align: center;
+            }
+        }
+    </style>
+
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">{{ page_title }}</h1>
+            {% if mode == 'training' %}
+            <p class="text-secondary mb-0">Capture your face samples directly in the website to improve usual-order recognition.</p>
+            {% else %}
+            <p class="text-secondary mb-0">Use the website camera page to confirm your face and add your usual item to the cart.</p>
+            {% endif %}
+        </div>
+        <a href="{{ back_url }}" class="btn wideye-camera-secondary">Back</a>
+    </div>
+
+    <div
+        id="faceCameraApp"
+        class="wideye-camera-page"
+        data-mode="{{ mode }}"
+        data-preview-url="{{ preview_url | default('') }}"
+        data-capture-url="{{ capture_url | default('') }}"
+        data-confirm-url="{{ confirm_url | default('') }}"
+        data-reset-url="{{ reset_url | default('') }}"
+        data-success-redirect="{{ success_redirect }}"
+        data-training-steps='{{ training_steps | default([], true) | tojson }}'
+    >
+        <section class="wideye-camera-card">
+            <div class="wideye-camera-frame">
+                <video id="faceCameraVideo" class="wideye-camera-feed" autoplay playsinline muted></video>
+                <canvas id="faceCameraOverlay" class="wideye-camera-overlay"></canvas>
+                <div class="wideye-face-guide" aria-hidden="true">
+                    <div class="wideye-face-guide-box"></div>
+                    <div class="wideye-face-guide-label">Keep your face inside the box</div>
+                </div>
+            </div>
+            <canvas id="faceCameraCanvas" class="d-none"></canvas>
+
+            <div class="wideye-camera-actions">
+                <button type="button" id="startCameraButton" class="wideye-action-button">Start camera</button>
+                {% if mode == 'training' %}
+                <button type="button" id="captureFrameButton" class="btn wideye-camera-secondary">Capture step</button>
+                {% else %}
+                <button type="button" id="captureFrameButton" class="btn wideye-camera-secondary">Confirm usual order</button>
+                {% endif %}
+            </div>
+
+            <div id="faceCameraStatus" class="wideye-camera-status">
+                Camera is idle. Start the camera to begin.
+            </div>
+        </section>
+
+        <aside class="wideye-camera-side">
+            {% if mode == 'training' %}
+            <h2 class="h5">Training steps</h2>
+            <p class="wideye-step-meta">Press <strong>Enter</strong> or click <strong>Capture step</strong> to save the current step.</p>
+            <div id="faceTrainingSteps" class="wideye-step-list"></div>
+            {% else %}
+            <h2 class="h5">How it works</h2>
+            <div class="wideye-step-list">
+                <div class="wideye-step-item active">
+                    <div class="fw-semibold">1. Start camera</div>
+                    <div class="wideye-step-meta">Allow browser camera access on localhost or HTTPS.</div>
+                </div>
+                <div class="wideye-step-item active">
+                    <div class="fw-semibold">2. Face the camera</div>
+                    <div class="wideye-step-meta">Keep your face centered before confirming.</div>
+                </div>
+                <div class="wideye-step-item active">
+                    <div class="fw-semibold">3. Confirm</div>
+                    <div class="wideye-step-meta">Click <strong>Confirm usual order</strong> to add your usual item to the cart.</div>
+                </div>
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/faceCamera.js') }}"></script>
+{% endblock %}

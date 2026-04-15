@@ -451,7 +451,7 @@
                     {% if saved_usual_items %}
                     <form method="POST" class="d-inline">
                         {{ form.hidden_tag() }}
-                        {{ form.remove_usual(class="wideye-profile-action wideye-profile-secondary") }}
+                        <button type="submit" name="remove_usual" value="1" class="wideye-profile-action wideye-profile-secondary">Remove all usual</button>
                     </form>
                     {% endif %}
                 </div>
@@ -611,7 +611,7 @@
                 <div class="wideye-profile-actions">
                     <form method="POST">
                         {{ form.hidden_tag() }}
-                        {{ form.remove_usual(class="wideye-profile-action wideye-profile-secondary") }}
+                        <button type="submit" name="remove_usual" value="1" class="wideye-profile-action wideye-profile-secondary">Remove all usual</button>
                     </form>
                 </div>
                 {% endif %}

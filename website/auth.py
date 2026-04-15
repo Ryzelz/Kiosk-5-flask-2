@@ -100,7 +100,15 @@ def profile(customer_id):
     form = UsualOrderForm()
     products = Product.query.order_by(Product.product_name.asc()).all()
     face_images = list_saved_face_images(customer.face_profile_name)
-    saved_usual_items = customer.usual_items
+    invalid_usual_items = [item for item in customer.usual_items if item.product is None]
+    if invalid_usual_items:
+        for usual_item in invalid_usual_items:
+            db.session.delete(usual_item)
+        db.session.flush()
+        sync_primary_usual_product(customer)
+        db.session.commit()
+
+    saved_usual_items = [item for item in customer.usual_items if item.product is not None]
 
     if request.method == 'POST' and request.form.get('remove_usual_item_id'):
         usual_item = UsualOrderItem.query.filter_by(

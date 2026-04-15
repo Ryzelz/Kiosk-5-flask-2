@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+
+{% block title %} Complete Payment {% endblock %}
+
+{% block body %}
+
+<div class="wideye-shell py-4">
+    <style>
+        .wideye-pay-layout {
+            max-width: min(1100px, 100%);
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        .wideye-pay-card {
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: clamp(18px, 4vw, 32px);
+        }
+
+        .wideye-pay-main {
+            text-align: center;
+        }
+
+        .wideye-pay-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 18px;
+        }
+
+        .wideye-pay-amount {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .wideye-pay-label {
+            color: #94a2bc;
+            font-size: 0.88rem;
+            margin-bottom: 24px;
+        }
+
+        .wideye-pay-qr-wrap {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 20px;
+            display: inline-block;
+            margin-bottom: 24px;
+        }
+
+        .wideye-pay-qr-wrap img {
+            max-width: 260px;
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .wideye-pay-qr-wrap iframe {
+            width: min(100%, 300px);
+            aspect-ratio: 5 / 7;
+            height: auto;
+            border: none;
+            border-radius: 10px;
+        }
+
+        .wideye-pay-status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            max-width: 100%;
+        }
+
+        .wideye-pay-waiting {
+            background: rgba(255, 191, 47, 0.15);
+            color: #ffbf2f;
+        }
+
+        .wideye-pay-success {
+            background: rgba(52, 211, 153, 0.15);
+            color: #34d399;
+        }
+
+        .wideye-pay-failed {
+            background: rgba(255, 99, 132, 0.15);
+            color: #ff6384;
+        }
+
+        .wideye-pay-hint {
+            color: #94a2bc;
+            font-size: 0.84rem;
+        }
+
+        .wideye-pay-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .wideye-pay-summary-title {
+            margin: 0 0 18px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .wideye-pay-summary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .wideye-pay-summary-item {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .wideye-pay-summary-image {
+            width: 68px;
+            height: 68px;
+            object-fit: cover;
+            border-radius: 12px;
+            flex-shrink: 0;
+            background: #0f172a;
+        }
+
+        .wideye-pay-summary-name {
+            margin: 0;
+            color: #ffffff;
+            font-size: 0.98rem;
+            font-weight: 700;
+        }
+
+        .wideye-pay-summary-meta,
+        .wideye-pay-summary-options {
+            margin: 4px 0 0;
+            color: #94a2bc;
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+
+        .wideye-pay-summary-total {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .wideye-pay-primary {
+            border: none;
+            border-radius: 999px;
+            padding: 11px 22px;
+            font-weight: 700;
+            background: #ffbf2f;
+            color: #111827;
+            display: none;
+        }
+
+        .wideye-pay-secondary {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            padding: 11px 22px;
+            color: #ffffff;
+        }
+
+        @keyframes wideye-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .wideye-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 191, 47, 0.3);
+            border-top-color: #ffbf2f;
+            border-radius: 50%;
+            animation: wideye-spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @media (max-width: 991.98px) {
+            .wideye-pay-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .wideye-pay-secondary,
+            .wideye-pay-primary {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+
+    <div class="wideye-pay-layout">
+        <div class="wideye-pay-card wideye-pay-main">
+            <div class="wideye-pay-icon" style="background:rgba(52,211,153,0.15);color:#34d399;">
+                <i class="bi bi-qr-code"></i>
+            </div>
+
+            <div class="wideye-pay-amount">PhP {{ total }}</div>
+            <p class="wideye-pay-label">Scan the QR code below with your banking app to pay.</p>
+
+            {% if qr_image_url %}
+            <div class="wideye-pay-qr-wrap">
+                <img src="{{ qr_image_url }}" alt="Scan this QR code to complete payment">
+            </div>
+            {% elif redirect_url %}
+            <div class="wideye-pay-qr-wrap">
+                <iframe id="qr-frame" src="{{ redirect_url }}"></iframe>
+            </div>
+            {% else %}
+            <div class="wideye-pay-qr-wrap">
+                <p style="color:#111827;margin:0;">QR code is being generated&hellip;</p>
+            </div>
+            {% endif %}
+
+            <div id="pay-status" class="wideye-pay-status wideye-pay-waiting">
+                <span class="wideye-spinner"></span>
+                Waiting for payment&hellip;
+            </div>
+
+            <p class="wideye-pay-hint">This page checks automatically. Do not close it until payment is confirmed.</p>
+
+            <div class="wideye-pay-actions">
+                {% if not is_usual_order %}
+                <a id="btn-orders" href="/orders" class="wideye-pay-primary">View My Orders</a>
+                {% else %}
+                <a id="btn-orders" href="/" class="wideye-pay-primary">Back to Home</a>
+                {% endif %}
+                {% if redirect_url %}
+                <a href="{{ redirect_url }}" target="_blank" rel="noopener noreferrer" class="wideye-pay-secondary">Open Payment Page</a>
+                {% endif %}
+                <a href="/" class="wideye-pay-secondary">Back to Home</a>
+            </div>
+        </div>
+
+        {% if orders %}
+        <div class="wideye-pay-card">
+            <h2 class="wideye-pay-summary-title">Order summary</h2>
+
+            <div class="wideye-pay-summary-list">
+                {% for item in orders %}
+                <div class="wideye-pay-summary-item">
+                    <img
+                        class="wideye-pay-summary-image"
+                        src="{{ get_product_image(item.product, item.size) }}"
+                        alt="{{ item.product.product_name }}"
+                    >
+                    <div>
+                        <p class="wideye-pay-summary-name">{{ item.product.product_name }}</p>
+                        <p class="wideye-pay-summary-meta">
+                            Qty {{ item.quantity }} · PhP {{ '%.2f'|format(item.price) }} each
+                        </p>
+                        <p class="wideye-pay-summary-options">{{ format_option_summary(item) }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="wideye-pay-summary-total">
+                <span>Total</span>
+                <span>PhP {{ '%.2f'|format(total) }}</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var piId = "{{ payment_intent_id }}";
+    var statusEl = document.getElementById('pay-status');
+    var btnOrders = document.getElementById('btn-orders');
+    var polling = true;
+
+    function poll() {
+        if (!polling) return;
+
+        fetch('/check-payment/' + piId)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.status === 'succeeded') {
+                    polling = false;
+                    statusEl.className = 'wideye-pay-status wideye-pay-success';
+                    statusEl.innerHTML = '<i class="bi bi-check-circle-fill"></i> Payment confirmed!';
+                    btnOrders.style.display = 'inline-flex';
+                } else if (data.status === 'failed' || data.status === 'cancelled') {
+                    polling = false;
+                    statusEl.className = 'wideye-pay-status wideye-pay-failed';
+                    statusEl.innerHTML = '<i class="bi bi-x-circle-fill"></i> Payment ' + data.status;
+                } else {
+                    setTimeout(poll, 4000);
+                }
+            })
+            .catch(function () {
+                setTimeout(poll, 6000);
+            });
+    }
+
+    setTimeout(poll, 5000);
+})();
+</script>
+{% endblock %}
