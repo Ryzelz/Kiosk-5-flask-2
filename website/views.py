@@ -10,41 +10,37 @@ from .paymongo import create_payment_intent, attach_qrph, retrieve_payment_inten
 views = Blueprint('views', __name__)
 
 
-def clamp_option_count(value, max_count=5):
-    try:
-        numeric_value = int(value)
-    except (TypeError, ValueError):
-        return 0
-
-    return max(0, min(numeric_value, max_count))
+def parse_options(csv_string):
+    """Parse a comma-separated options string into a list of trimmed, non-empty tokens."""
+    if not csv_string:
+        return []
+    return [opt.strip() for opt in str(csv_string).split(',') if opt.strip()]
 
 
 def format_option_summary(item):
     parts = []
 
-    if getattr(item, 'sugar', 0):
-        parts.append(f'Sugar: {clamp_option_count(item.sugar)}')
+    sugar_val = getattr(item, 'sugar', '') or ''
+    milk_val = getattr(item, 'milk', '') or ''
+    shot_val = getattr(item, 'shot', '') or ''
 
-    if getattr(item, 'milk', 0):
-        parts.append(f'Milk: {clamp_option_count(item.milk)}')
-
-    if getattr(item, 'shot', 0):
-        parts.append(f'Shot: {clamp_option_count(item.shot)}')
+    if sugar_val:
+        parts.append(f'Sugar: {sugar_val}')
+    if milk_val:
+        parts.append(f'Milk: {milk_val}')
+    if shot_val:
+        parts.append(f'Shot: {shot_val}')
 
     return ', '.join(parts) if parts else 'No add-ons'
 
 
-def add_product_to_customer_cart(customer_id, product, sugar=0, milk=0, shot=0):
-    selected_sugar = clamp_option_count(sugar)
-    selected_milk = clamp_option_count(milk)
-    selected_shot = clamp_option_count(shot)
-
+def add_product_to_customer_cart(customer_id, product, sugar='', milk='', shot=''):
     cart_item = Cart.query.filter_by(
         customer_link=customer_id,
         product_link=product.id,
-        sugar=selected_sugar,
-        milk=selected_milk,
-        shot=selected_shot
+        sugar=sugar,
+        milk=milk,
+        shot=shot
     ).first()
 
     if cart_item:
@@ -52,9 +48,9 @@ def add_product_to_customer_cart(customer_id, product, sugar=0, milk=0, shot=0):
     else:
         cart_item = Cart()
         cart_item.quantity = 1
-        cart_item.sugar = selected_sugar
-        cart_item.milk = selected_milk
-        cart_item.shot = selected_shot
+        cart_item.sugar = sugar
+        cart_item.milk = milk
+        cart_item.shot = shot
         cart_item.customer_link = customer_id
         cart_item.product_link = product.id
         db.session.add(cart_item)
@@ -80,6 +76,7 @@ def home():
     items = Product.query.order_by(Product.date_added.desc()).all()
 
     return render_template('home.html', items=items, format_option_summary=format_option_summary,
+                           parse_options=parse_options,
                            cart=Cart.query.filter_by(customer_link=current_user.id).all()
                            if current_user.is_authenticated else [])
 
@@ -92,24 +89,21 @@ def add_to_cart(item_id):
         flash('Item not found')
         return redirect(request.referrer or '/')
 
-    selected_sugar = clamp_option_count(request.values.get('sugar', 0))
-    selected_milk = clamp_option_count(request.values.get('milk', 0))
-    selected_shot = clamp_option_count(request.values.get('shot', 0))
+    selected_sugar = (request.values.get('sugar', '') or '').strip()
+    selected_milk = (request.values.get('milk', '') or '').strip()
+    selected_shot = (request.values.get('shot', '') or '').strip()
 
-    if item_to_add.sugar <= 0:
-        selected_sugar = 0
-    else:
-        selected_sugar = min(selected_sugar, clamp_option_count(item_to_add.sugar))
+    # Validate selections against product's available options
+    product_sugars = parse_options(item_to_add.sugar)
+    product_milks = parse_options(item_to_add.milk)
+    product_shots = parse_options(item_to_add.shot)
 
-    if item_to_add.milk <= 0:
-        selected_milk = 0
-    else:
-        selected_milk = min(selected_milk, clamp_option_count(item_to_add.milk))
-
-    if item_to_add.shot <= 0:
-        selected_shot = 0
-    else:
-        selected_shot = min(selected_shot, clamp_option_count(item_to_add.shot))
+    if selected_sugar and selected_sugar not in product_sugars:
+        selected_sugar = ''
+    if selected_milk and selected_milk not in product_milks:
+        selected_milk = ''
+    if selected_shot and selected_shot not in product_shots:
+        selected_shot = ''
 
     try:
         cart_item = add_product_to_customer_cart(

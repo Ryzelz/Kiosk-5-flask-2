@@ -136,7 +136,7 @@
                             <span style="color:#fff;font-weight:600;">{{ order.product.product_name }}</span>
                         </div>
                     </td>
-                    <td>Sugar {{ order.sugar }} · Milk {{ order.milk }} · Shot {{ order.shot }}</td>
+                    <td>{{ order.sugar if order.sugar else '—' }} · {{ order.milk if order.milk else '—' }} · {{ order.shot if order.shot else '—' }}</td>
                     <td style="font-weight:600;color:#fff;">PhP {{ order.price }}</td>
                     <td>{{ order.quantity }}</td>
                     <td>

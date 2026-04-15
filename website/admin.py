@@ -26,10 +26,14 @@ def build_media_path(file_name):
 
 
 def resolve_updated_value(value, fallback):
-    if value in (None, ''):
+    if value is None:
         return fallback
 
     return value
+
+
+def current_user_is_admin():
+    return current_user.is_authenticated and bool(getattr(current_user, 'is_admin', False))
 
 
 @admin.route('/media/<path:filename>')
@@ -40,7 +44,7 @@ def get_image(filename):
 @admin.route('/add-shop-items', methods=['GET', 'POST'])
 @login_required
 def add_shop_items():
-    if current_user.id == 1:
+    if current_user_is_admin():
         form = ShopItemsForm()
 
         if form.validate_on_submit():
@@ -89,7 +93,7 @@ def add_shop_items():
 @admin.route('/shop-items', methods=['GET', 'POST'])
 @login_required
 def shop_items():
-    if current_user.id == 1:
+    if current_user_is_admin():
         items = Product.query.order_by(Product.date_added).all()
         return render_template('shop_items.html', items=items)
     return render_template('404.html')
@@ -98,7 +102,7 @@ def shop_items():
 @admin.route('/update-item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def update_item(item_id):
-    if current_user.id == 1:
+    if current_user_is_admin():
         form = UpdateShopItemsForm()
 
         item_to_update = Product.query.get(item_id)
@@ -162,7 +166,7 @@ def update_item(item_id):
 @admin.route('/delete-item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def delete_item(item_id):
-    if current_user.id == 1:
+    if current_user_is_admin():
         try:
             item_to_delete = Product.query.get(item_id)
             db.session.delete(item_to_delete)
@@ -180,7 +184,7 @@ def delete_item(item_id):
 @admin.route('/view-orders')
 @login_required
 def order_view():
-    if current_user.id == 1:
+    if current_user_is_admin():
         orders = Order.query.all()
         return render_template('view_orders.html', orders=orders)
     return render_template('404.html')
@@ -189,10 +193,17 @@ def order_view():
 @admin.route('/update-order/<int:order_id>', methods=['GET', 'POST'])
 @login_required
 def update_order(order_id):
-    if current_user.id == 1:
+    if current_user_is_admin():
         form = OrderForm()
 
         order = Order.query.get(order_id)
+
+        if order is None:
+            flash('Order not found.')
+            return redirect('/view-orders')
+
+        if not form.is_submitted():
+            form.order_status.data = order.status
 
         if form.validate_on_submit():
             status = form.order_status.data
@@ -207,7 +218,7 @@ def update_order(order_id):
                 flash(f'Order {order_id} not updated')
                 return redirect('/view-orders')
 
-        return render_template('order_update.html', form=form)
+        return render_template('order_update.html', form=form, order=order)
 
     return render_template('404.html')
 
@@ -215,7 +226,7 @@ def update_order(order_id):
 @admin.route('/customers')
 @login_required
 def display_customers():
-    if current_user.id == 1:
+    if current_user_is_admin():
         customers = Customer.query.all()
         return render_template('customers.html', customers=customers)
     return render_template('404.html')
@@ -224,7 +235,7 @@ def display_customers():
 @admin.route('/admin-page')
 @login_required
 def admin_page():
-    if current_user.id == 1:
+    if current_user_is_admin():
         return render_template('admin.html')
     return render_template('404.html')
 

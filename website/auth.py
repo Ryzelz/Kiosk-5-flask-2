@@ -23,6 +23,7 @@ def sign_up():
             new_customer.email = email
             new_customer.username = username
             new_customer.password = password2
+            new_customer.is_admin = Customer.query.filter_by(is_admin=True).first() is None
             new_customer.face_profile_name = normalize_face_profile_name(username)
 
             try:
@@ -100,10 +101,17 @@ def profile(customer_id):
 
     if not form.usual_product.choices:
         flash('No products are available to save as a usual order yet.')
-        return render_template('profile.html', customer=customer, form=form, face_images=face_images)
+        return render_template(
+            'profile.html',
+            customer=customer,
+            form=form,
+            face_images=face_images,
+            products=products,
+            selected_usual_id=None,
+        )
 
-    if request.method == 'GET' and customer.usual_product_id:
-        form.usual_product.data = customer.usual_product_id
+    if request.method == 'GET':
+        form.usual_product.data = customer.usual_product_id or products[0].id
 
     if form.validate_on_submit():
         selected_product = Product.query.get_or_404(form.usual_product.data)
@@ -116,7 +124,14 @@ def profile(customer_id):
         flash(f'Your usual order is now {selected_product.product_name}.')
         return redirect(url_for('auth.profile', customer_id=customer.id))
 
-    return render_template('profile.html', customer=customer, form=form, face_images=face_images)
+    return render_template(
+        'profile.html',
+        customer=customer,
+        form=form,
+        face_images=face_images,
+        products=products,
+        selected_usual_id=form.usual_product.data or customer.usual_product_id,
+    )
 
 
 @auth.route('/profile/<int:customer_id>/train-usual-face')

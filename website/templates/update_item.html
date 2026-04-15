@@ -8,7 +8,7 @@
     <style>
         .wideye-update-layout {
             display: grid;
-            grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
             gap: 24px;
         }
 
@@ -108,10 +108,6 @@
         }
 
         @media (max-width: 991.98px) {
-            .wideye-update-layout {
-                grid-template-columns: 1fr;
-            }
-
             .wideye-update-grid {
                 grid-template-columns: 1fr;
             }
@@ -144,7 +140,7 @@
                 </div>
                 <div class="wideye-update-meta-item">
                     <span class="wideye-update-label">Add-on Limits</span>
-                    <span class="wideye-update-value">Sugar {{ item.sugar }} • Milk {{ item.milk }} • Shot {{ item.shot }}</span>
+                    <span class="wideye-update-value">Sugar: {{ item.sugar or '—' }} • Milk: {{ item.milk or '—' }} • Shot: {{ item.shot or '—' }}</span>
                 </div>
             </div>
         </aside>

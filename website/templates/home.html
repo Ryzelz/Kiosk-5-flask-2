@@ -15,7 +15,7 @@
 
         .wideye-hero img {
             width: 100%;
-            height: 410px;
+            height: clamp(240px, 42vw, 410px);
             object-fit: cover;
             display: block;
         }
@@ -66,7 +66,7 @@
 
         .wideye-product-card img {
             width: 100%;
-            height: 300px;
+            height: clamp(220px, 32vw, 300px);
             object-fit: cover;
             display: block;
         }
@@ -145,24 +145,14 @@
         }
 
         @media (max-width: 767.98px) {
-            .wideye-hero img {
-                height: 260px;
+            .wideye-product-copy {
+                min-height: auto;
             }
         }
     </style>
 
     <section class="wideye-hero">
         <img src="{{ url_for('static', filename='images/featured.jpg') }}" alt="Wideye featured coffee products">
-    </section>
-
-    <section class="wideye-filter-bar">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <span class="wideye-filter-link"><i class="bi bi-grid"></i>All</span>
-            <span class="wideye-filter-link"><i class="bi bi-cup-hot"></i>Coffee</span>
-            <span class="wideye-filter-link"><i class="bi bi-record-circle"></i>Beans</span>
-            <span class="wideye-filter-link"><i class="bi bi-funnel"></i>Filters</span>
-            <span class="wideye-filter-link"><i class="bi bi-box-seam"></i>Merchandise</span>
-        </div>
     </section>
 
     <section class="wideye-usual-wrap">
@@ -172,6 +162,16 @@
                 <p class="wideye-action-copy wideye-usual-copy mx-auto">Open the usual-order camera page, look at the webcam, then confirm to add your saved usual item to the cart.</p>
             </div>
             <a href="{{ url_for('views.usual_order') }}" class="wideye-action-button wideye-usual-button">Usual</a>
+        </div>
+    </section>
+
+    <section class="wideye-filter-bar">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <span class="wideye-filter-link"><i class="bi bi-grid"></i>All</span>
+            <span class="wideye-filter-link"><i class="bi bi-cup-hot"></i>Coffee</span>
+            <span class="wideye-filter-link"><i class="bi bi-record-circle"></i>Beans</span>
+            <span class="wideye-filter-link"><i class="bi bi-funnel"></i>Filters</span>
+            <span class="wideye-filter-link"><i class="bi bi-box-seam"></i>Merchandise</span>
         </div>
     </section>
 
@@ -191,9 +191,9 @@
                         Premium Wideye selection with rich flavor notes and carefully prepared presentation.
                     </p>
 
-                    {% set sugar_limit = [item.sugar, 5] | min %}
-                    {% set milk_limit = [item.milk, 5] | min %}
-                    {% set shot_limit = [item.shot, 5] | min %}
+                    {% set sugar_options = parse_options(item.sugar) %}
+                    {% set milk_options = parse_options(item.milk) %}
+                    {% set shot_options = parse_options(item.shot) %}
                     <form action="/add-to-cart/{{ item.id }}" method="POST">
                     <div class="row g-3 align-items-end">
                         <div class="col-7">
@@ -212,32 +212,48 @@
                         </div>
                         <div class="col-5">
                             <label class="wideye-meta-label">Sugar</label>
-                            <select class="wideye-option-select" name="sugar" {% if sugar_limit == 0 %}disabled{% endif %}>
-                                {% for option in range(0, sugar_limit + 1) %}
-                                <option value="{{ option }}">{{ option }}</option>
+                            <select class="wideye-option-select" name="sugar" {% if not sugar_options %}disabled{% endif %}>
+                                {% if not sugar_options %}
+                                <option value="">—</option>
+                                {% else %}
+                                {% for opt in sugar_options %}
+                                <option value="{{ opt }}">{{ opt }}</option>
                                 {% endfor %}
+                                {% endif %}
                             </select>
                         </div>
                         <div class="col-4">
                             <label class="wideye-meta-label">Milk</label>
-                            <select class="wideye-option-select" name="milk" {% if milk_limit == 0 %}disabled{% endif %}>
-                                {% for option in range(0, milk_limit + 1) %}
-                                <option value="{{ option }}">{{ option }}</option>
+                            <select class="wideye-option-select" name="milk" {% if not milk_options %}disabled{% endif %}>
+                                {% if not milk_options %}
+                                <option value="">—</option>
+                                {% else %}
+                                {% for opt in milk_options %}
+                                <option value="{{ opt }}">{{ opt }}</option>
                                 {% endfor %}
+                                {% endif %}
                             </select>
                         </div>
                         <div class="col-4">
                             <label class="wideye-meta-label">Shot</label>
-                            <select class="wideye-option-select" name="shot" {% if shot_limit == 0 %}disabled{% endif %}>
-                                {% for option in range(0, shot_limit + 1) %}
-                                <option value="{{ option }}">{{ option }}</option>
+                            <select class="wideye-option-select" name="shot" {% if not shot_options %}disabled{% endif %}>
+                                {% if not shot_options %}
+                                <option value="">—</option>
+                                {% else %}
+                                {% for opt in shot_options %}
+                                <option value="{{ opt }}">{{ opt }}</option>
                                 {% endfor %}
+                                {% endif %}
                             </select>
                         </div>
                         <div class="col-4">
                             <label class="wideye-meta-label">Add-ons</label>
                             <div class="wideye-meta-value">
-                                {{ format_option_summary(item) }}
+                                {% if sugar_options or milk_options or shot_options %}
+                                Available
+                                {% else %}
+                                No add-ons
+                                {% endif %}
                             </div>
                         </div>
                     </div>

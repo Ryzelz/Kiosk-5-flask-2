@@ -34,12 +34,25 @@ def sync_customer_schema():
     if 'face_profile_name' not in existing_columns:
         statements.append('ALTER TABLE customer ADD COLUMN face_profile_name VARCHAR(100)')
 
+    if 'is_admin' not in existing_columns:
+        statements.append('ALTER TABLE customer ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL')
+
     if 'usual_product_id' not in existing_columns:
         statements.append('ALTER TABLE customer ADD COLUMN usual_product_id INTEGER')
 
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
+
+        connection.execute(text(
+            'UPDATE customer SET is_admin = COALESCE(is_admin, 0)'
+        ))
+
+        connection.execute(text(
+            'UPDATE customer SET is_admin = 1 '
+            'WHERE id = (SELECT MIN(id) FROM customer) '
+            'AND NOT EXISTS (SELECT 1 FROM customer WHERE COALESCE(is_admin, 0) = 1)'
+        ))
 
         connection.execute(text(
             'UPDATE customer SET face_profile_name = username '
@@ -57,21 +70,23 @@ def sync_product_schema():
     statements = []
 
     if 'sugar' not in existing_columns:
-        statements.append('ALTER TABLE product ADD COLUMN sugar INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE product ADD COLUMN sugar VARCHAR(500) DEFAULT '' NOT NULL")
 
     if 'milk' not in existing_columns:
-        statements.append('ALTER TABLE product ADD COLUMN milk INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE product ADD COLUMN milk VARCHAR(500) DEFAULT '' NOT NULL")
 
     if 'shot' not in existing_columns:
-        statements.append('ALTER TABLE product ADD COLUMN shot INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE product ADD COLUMN shot VARCHAR(500) DEFAULT '' NOT NULL")
 
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
 
-        connection.execute(text(
-            'UPDATE product SET sugar = COALESCE(sugar, 0), milk = COALESCE(milk, 0), shot = COALESCE(shot, 0)'
-        ))
+        # Migrate old integer values to comma-separated option strings
+        for col in ('sugar', 'milk', 'shot'):
+            connection.execute(text(
+                f"UPDATE product SET {col} = '' WHERE {col} IS NULL OR TRIM(CAST({col} AS TEXT)) = '' OR TRIM(CAST({col} AS TEXT)) = '0'"
+            ))
 
 
 def sync_cart_schema():
@@ -84,21 +99,22 @@ def sync_cart_schema():
     statements = []
 
     if 'sugar' not in existing_columns:
-        statements.append('ALTER TABLE cart ADD COLUMN sugar INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE cart ADD COLUMN sugar VARCHAR(100) DEFAULT '' NOT NULL")
 
     if 'milk' not in existing_columns:
-        statements.append('ALTER TABLE cart ADD COLUMN milk INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE cart ADD COLUMN milk VARCHAR(100) DEFAULT '' NOT NULL")
 
     if 'shot' not in existing_columns:
-        statements.append('ALTER TABLE cart ADD COLUMN shot INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE cart ADD COLUMN shot VARCHAR(100) DEFAULT '' NOT NULL")
 
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
 
-        connection.execute(text(
-            'UPDATE cart SET sugar = COALESCE(sugar, 0), milk = COALESCE(milk, 0), shot = COALESCE(shot, 0)'
-        ))
+        for col in ('sugar', 'milk', 'shot'):
+            connection.execute(text(
+                f"UPDATE cart SET {col} = '' WHERE {col} IS NULL OR TRIM(CAST({col} AS TEXT)) = '' OR TRIM(CAST({col} AS TEXT)) = '0'"
+            ))
 
 
 def sync_order_schema():
@@ -114,13 +130,13 @@ def sync_order_schema():
         statements.append('ALTER TABLE "order" ADD COLUMN payment_id VARCHAR(1000) DEFAULT \'legacy-order\' NOT NULL')
 
     if 'sugar' not in existing_columns:
-        statements.append('ALTER TABLE "order" ADD COLUMN sugar INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE \"order\" ADD COLUMN sugar VARCHAR(100) DEFAULT '' NOT NULL")
 
     if 'milk' not in existing_columns:
-        statements.append('ALTER TABLE "order" ADD COLUMN milk INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE \"order\" ADD COLUMN milk VARCHAR(100) DEFAULT '' NOT NULL")
 
     if 'shot' not in existing_columns:
-        statements.append('ALTER TABLE "order" ADD COLUMN shot INTEGER DEFAULT 0 NOT NULL')
+        statements.append("ALTER TABLE \"order\" ADD COLUMN shot VARCHAR(100) DEFAULT '' NOT NULL")
 
     with db.engine.begin() as connection:
         for statement in statements:
@@ -130,9 +146,10 @@ def sync_order_schema():
             'UPDATE "order" SET payment_id = COALESCE(NULLIF(TRIM(payment_id), \'\'), \'legacy-order\')'
         ))
 
-        connection.execute(text(
-            'UPDATE "order" SET sugar = COALESCE(sugar, 0), milk = COALESCE(milk, 0), shot = COALESCE(shot, 0)'
-        ))
+        for col in ('sugar', 'milk', 'shot'):
+            connection.execute(text(
+                f'UPDATE "order" SET {col} = \'\' WHERE {col} IS NULL OR TRIM(CAST({col} AS TEXT)) = \'\' OR TRIM(CAST({col} AS TEXT)) = \'0\''
+            ))
 
 
 def create_app():

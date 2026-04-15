@@ -15,19 +15,35 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+        }
+
         body {
             background: #060b17;
             color: #f6f7fb;
             min-height: 100vh;
             font-family: Arial, Helvetica, sans-serif;
+            overflow-x: hidden;
         }
 
         a {
             text-decoration: none;
         }
 
+        img,
+        iframe,
+        canvas,
+        video {
+            max-width: 100%;
+        }
+
         .wideye-shell {
-            width: min(94%, 1280px);
+            width: min(calc(100% - clamp(1rem, 4vw, 3rem)), 1280px);
             margin: 0 auto;
         }
 
@@ -159,6 +175,34 @@
             background: #ffbf2f;
             color: #111827;
         }
+
+        @media (max-width: 991.98px) {
+            .wideye-navbar {
+                padding: 14px 0;
+            }
+
+            .wideye-search-form {
+                max-width: none;
+                order: 3;
+                flex-basis: 100%;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .wideye-brand-text {
+                font-size: 0.92rem;
+            }
+
+            .wideye-icon-button,
+            .wideye-avatar {
+                width: 36px;
+                height: 36px;
+            }
+
+            .wideye-action-strip {
+                padding: 14px;
+            }
+        }
     </style>
 
     <title>Wideye | {% block title %}{% endblock %}</title>
@@ -203,6 +247,9 @@
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
                             <li><a class="dropdown-item" href="/profile/{{ current_user.id }}">Profile</a></li>
                             <li><a class="dropdown-item" href="/orders">Orders</a></li>
+                            {% if current_user.is_admin %}
+                            <li><a class="dropdown-item" href="/admin-page">Admin Dashboard</a></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="/logout">Log Out</a></li>
                         </ul>
                     </div>

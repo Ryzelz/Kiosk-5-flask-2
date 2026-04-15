@@ -1,37 +1,288 @@
 {% extends 'base.html' %}
 
-{% block title %} Home {% endblock %}
-
+{% block title %} Profile {% endblock %}
 
 {% block body %}
-
-<div class="container my-5">
+<div class="wideye-shell py-4">
     <style>
-        .wideye-profile-card {
-            background-color: white;
+        .wideye-profile-layout {
+            display: grid;
+            grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+            gap: 24px;
+        }
+
+        .wideye-profile-side,
+        .wideye-profile-main,
+        .wideye-profile-card,
+        .wideye-face-card,
+        .wideye-usual-card {
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 18px;
-            margin-top: 20px;
-            color: #09111f;
-            padding: 18px;
+        }
+
+        .wideye-profile-side,
+        .wideye-profile-main {
+            padding: 22px;
+        }
+
+        .wideye-profile-nav {
+            display: grid;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .wideye-profile-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            color: #d7dcee;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .wideye-profile-nav-link.active {
+            background: rgba(255, 191, 47, 0.12);
+            color: #ffbf2f;
+            border-color: rgba(255, 191, 47, 0.3);
+        }
+
+        .wideye-profile-card {
+            padding: 20px;
+            margin-bottom: 20px;
         }
 
         .wideye-profile-meta {
-            margin-bottom: 8px;
-            color: #526079;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .wideye-profile-meta-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 14px;
+        }
+
+        .wideye-profile-meta-label {
+            display: block;
+            color: #94a2bc;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+
+        .wideye-profile-meta-value {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .wideye-profile-copy {
+            color: #a8b4cc;
         }
 
         .wideye-profile-actions {
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
-            margin-bottom: 18px;
+            margin-top: 18px;
+        }
+
+        .wideye-profile-action {
+            border-radius: 999px;
+            padding: 11px 18px;
+            font-weight: 700;
+        }
+
+        .wideye-profile-primary {
+            border: none;
+            background: #ffbf2f;
+            color: #111827;
+        }
+
+        .wideye-profile-secondary {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #ffffff;
+        }
+
+        .wideye-usual-head {
+            margin-bottom: 16px;
+        }
+
+        .wideye-usual-search-wrap {
+            position: relative;
+            margin-top: 16px;
+        }
+
+        .wideye-usual-search-wrap i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a2bc;
+        }
+
+        .wideye-usual-search,
+        .wideye-usual-search:focus,
+        .wideye-usual-hidden-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            color: #ffffff;
+            padding: 11px 14px 11px 42px;
+            box-shadow: none;
+        }
+
+        .wideye-usual-hidden-select {
+            display: none;
+        }
+
+        .wideye-usual-results {
+            display: none;
+            margin-top: 18px;
+        }
+
+        .wideye-usual-results.active {
+            display: block;
+        }
+
+        .wideye-usual-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .wideye-usual-card {
+            padding: 0;
+            text-align: left;
+            transition: border-color 0.2s, transform 0.2s, background 0.2s;
+            cursor: pointer;
+            width: 100%;
+            color: inherit;
+            overflow: hidden;
+            box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+        }
+
+        .wideye-usual-card:hover {
+            border-color: rgba(255, 191, 47, 0.35);
+            transform: translateY(-2px);
+        }
+
+        .wideye-usual-card.selected {
+            border-color: rgba(255, 191, 47, 0.55);
+            background: rgba(255, 191, 47, 0.08);
+        }
+
+        .wideye-usual-card img {
+            width: 100%;
+            height: clamp(220px, 32vw, 300px);
+            object-fit: cover;
+            display: block;
+        }
+
+        .wideye-usual-card-body {
+            padding: 16px 14px 14px;
+        }
+
+        .wideye-usual-name {
+            color: #ffffff;
+            font-weight: 700;
+            margin-bottom: 4px;
+            font-size: 1.22rem;
+        }
+
+        .wideye-usual-copy {
+            color: #a8b4cc;
+            min-height: 72px;
+            margin-bottom: 12px;
+        }
+
+        .wideye-usual-meta-label {
+            display: block;
+            font-size: 0.78rem;
+            color: #a9b4ca;
+            margin-bottom: 4px;
+        }
+
+        .wideye-usual-meta-value {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            color: #ffffff;
+            font-size: 0.82rem;
+            padding: 4px 10px;
+        }
+
+        .wideye-usual-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.15);
+            color: #34d399;
+            font-size: 0.76rem;
+            font-weight: 700;
+            margin-top: 12px;
+        }
+
+        .wideye-usual-price-wrap {
+            text-align: center;
+            margin-top: 14px;
+        }
+
+        .wideye-usual-price {
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .wideye-usual-old-price {
+            color: #94a2bc;
+            text-decoration: line-through;
+        }
+
+        .wideye-usual-select-button {
+            margin: 14px auto 0;
+            width: min(100%, 220px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 999px;
+            background: #24324b;
+            color: #ffffff;
+            font-weight: 700;
+            padding: 10px 16px;
+        }
+
+        .wideye-usual-empty {
+            display: none;
+            padding: 16px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            color: #a8b4cc;
+            margin-top: 12px;
+        }
+
+        .wideye-usual-hint {
+            padding: 16px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            color: #a8b4cc;
+            margin-top: 16px;
         }
 
         .wideye-face-card {
-            border: 1px solid #e4e9f3;
-            border-radius: 14px;
-            padding: 16px;
-            background: #f8faff;
+            padding: 20px;
         }
 
         .wideye-face-grid {
@@ -49,7 +300,7 @@
             aspect-ratio: 1 / 1;
             object-fit: cover;
             border-radius: 12px;
-            border: 1px solid #d9e2f1;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             background: #edf2fb;
         }
 
@@ -57,89 +308,300 @@
             display: block;
             margin-top: 6px;
             font-size: 0.76rem;
-            color: #61708a;
+            color: #94a2bc;
+        }
+
+        @media (max-width: 991.98px) {
+            .wideye-profile-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .wideye-usual-copy {
+                min-height: auto;
+            }
         }
     </style>
-    <div class="row">
-        <h3 style="color: white;">Welcome <span class="text-capitalize">{{ customer.username }}</span></h3>
 
-        <div class="col-sm-2 border-end" style="margin-top: 20px;">
-        
-            <ul class="list-unstyled">
-                <li class="d-grid"><a href="#" class="btn btn-primary">Profile</a></li>
-                <li class="d-grid"><a href="/change-password/{{ customer.id }}" class="btn btn-primary" style="margin-top: 5px;">Change Password</a></li>
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Welcome, <span class="text-capitalize">{{ customer.username }}</span></h1>
+        <p class="wideye-profile-copy mb-0">Manage your profile, saved usual order, and face samples in one place.</p>
+    </div>
 
-            </ul>
-        
-        </div>
+    <div class="wideye-profile-layout">
+        <aside class="wideye-profile-side">
+            <h2 class="h5 mb-1">Account</h2>
+            <p class="wideye-profile-copy mb-0">Quick access to your profile tools.</p>
 
-        <div class="col-sm-6 offset-sm-1 wideye-profile-card">
-            <div class="row">
+            <div class="wideye-profile-nav">
+                <a href="#profileSummary" class="wideye-profile-nav-link active">
+                    <i class="bi bi-person-circle"></i>
+                    <span>Profile</span>
+                </a>
+                <a href="#usualOrderEditor" class="wideye-profile-nav-link">
+                    <i class="bi bi-cup-hot-fill"></i>
+                    <span>Edit usual</span>
+                </a>
+                <a href="/change-password/{{ customer.id }}" class="wideye-profile-nav-link">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    <span>Change Password</span>
+                </a>
+            </div>
+        </aside>
 
-                <div class="col-sm-12">
-                    <div class="card m-2 border-0">
-                        <div class="card-body">
-                            <h3>{{ customer.username }}</h3>
-                            <p>Email: {{ customer.email }}</p>
-                            <p class="wideye-profile-meta">
-                                <strong>Saved usual:</strong>
-                                {% if customer.usual_product %}
-                                {{ customer.usual_product.product_name }}
-                                {% else %}
-                                No usual order saved yet
-                                {% endif %}
-                            </p>
-                            <p class="wideye-profile-meta">
-                                <strong>Face label:</strong> {{ customer.face_profile_name or customer.username }}
-                            </p>
-                            <p class="wideye-profile-meta mb-3">
-                                The kiosk camera must recognize this name before it can place your saved usual order.
-                            </p>
+        <section class="wideye-profile-main">
+            <div id="profileSummary" class="wideye-profile-card">
+                <h2 class="h4 mb-1">{{ customer.username }}</h2>
+                <p class="wideye-profile-copy mb-0">{{ customer.email }}</p>
 
-                            <div class="wideye-profile-actions">
-                                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#usualOrderEditor" aria-expanded="{% if form.errors %}true{% else %}false{% endif %}" aria-controls="usualOrderEditor">
-                                    Edit usual
-                                </button>
-                                <a class="btn btn-dark" href="{{ url_for('auth.train_usual_face', customer_id=customer.id) }}">Maker order faster</a>
-                            </div>
-
-                            <div class="collapse mt-3 {% if form.errors %}show{% endif %}" id="usualOrderEditor">
-                                <form method="POST">
-                                    {{ form.hidden_tag() }}
-                                    <div class="mb-3">
-                                        {{ form.usual_product.label(class="form-label") }}
-                                        {{ form.usual_product(class="form-select") }}
-                                    </div>
-                                    {{ form.save_usual(class="btn btn-dark") }}
-                                </form>
-                            </div>
-
-                            <div class="wideye-face-card mt-4">
-                                <h5>Saved face samples</h5>
-                                <p class="wideye-profile-meta">
-                                    Open the camera page, then capture the required samples for center, face left, face right, and blink.
-                                </p>
-                                {% if face_images %}
-                                <div class="wideye-face-grid">
-                                    {% for image_name in face_images %}
-                                    <div class="wideye-face-sample">
-                                        <img src="{{ url_for('auth.profile_face_image', customer_id=customer.id, filename=image_name) }}" alt="Saved face sample {{ loop.index }}">
-                                        <span class="wideye-face-caption">{{ image_name.rsplit('.', 1)[0].replace('_', ' ') }}</span>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% else %}
-                                <p class="mb-0">No face samples saved yet. Train your profile to make the usual order faster.</p>
-                                {% endif %}
-                            </div>
-                        </div>
+                <div class="wideye-profile-meta">
+                    <div class="wideye-profile-meta-item">
+                        <span class="wideye-profile-meta-label">Saved usual</span>
+                        <span class="wideye-profile-meta-value">
+                            {% if customer.usual_product %}
+                            {{ customer.usual_product.product_name }}
+                            {% else %}
+                            No usual order saved yet
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="wideye-profile-meta-item">
+                        <span class="wideye-profile-meta-label">Face label</span>
+                        <span class="wideye-profile-meta-value">{{ customer.face_profile_name or customer.username }}</span>
                     </div>
                 </div>
 
+                <p class="wideye-profile-copy mt-3 mb-0">
+                    The kiosk camera must recognize this name before it can place your saved usual order.
+                </p>
+
+                <div class="wideye-profile-actions">
+                    <a class="wideye-profile-action wideye-profile-primary" href="{{ url_for('auth.train_usual_face', customer_id=customer.id) }}">Make order faster</a>
+                    <a class="wideye-profile-action wideye-profile-secondary" href="#usualOrderEditor">Edit usual order</a>
+                </div>
             </div>
-        
-        </div>
+
+            <div id="usualOrderEditor" class="wideye-profile-card">
+                <div class="wideye-usual-head">
+                    <div>
+                        <h3 class="h5 mb-1">Edit usual order</h3>
+                        <p class="wideye-profile-copy mb-0">Search the menu, then choose the item you want the kiosk to place quickly.</p>
+                    </div>
+                </div>
+
+                {% if products %}
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    {{ form.usual_product(class="wideye-usual-hidden-select", id="usualProductSelect") }}
+
+                    <div class="wideye-usual-search-wrap">
+                        <label class="form-label" for="usualProductSearch">Search products</label>
+                        <i class="bi bi-search"></i>
+                        <input id="usualProductSearch" class="wideye-usual-search" type="search" placeholder="Search product name">
+                    </div>
+
+                    <div id="usualProductHint" class="wideye-usual-hint">
+                        Start typing to search for a product. Matching items will appear here.
+                    </div>
+
+                    <div id="usualProductResults" class="wideye-usual-results">
+                        <div id="usualProductGrid" class="wideye-usual-grid">
+                            {% for product in products %}
+                            {% set is_selected = selected_usual_id == product.id %}
+                            <button
+                                type="button"
+                                class="wideye-usual-card{% if is_selected %} selected{% endif %}"
+                                data-product-id="{{ product.id }}"
+                                data-search="{{ product.product_name|lower }}"
+                                aria-pressed="{% if is_selected %}true{% else %}false{% endif %}"
+                            >
+                                <img src="{{ product.product_picture }}" alt="{{ product.product_name }}">
+                                <div class="wideye-usual-card-body">
+                                    <div class="wideye-usual-name">{{ product.product_name }}</div>
+                                    <p class="wideye-usual-copy">Premium Wideye selection with rich flavor notes and carefully prepared presentation.</p>
+
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-7">
+                                            <label class="wideye-usual-meta-label">Size</label>
+                                            <div class="wideye-usual-meta-value">
+                                                {% if product.in_stock >= 250 %}
+                                                250ML
+                                                {% elif product.in_stock >= 200 %}
+                                                200G
+                                                {% elif product.in_stock >= 100 %}
+                                                100G
+                                                {% else %}
+                                                Limited
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-5">
+                                            <label class="wideye-usual-meta-label">Sugar</label>
+                                            <div class="wideye-usual-meta-value">{{ product.sugar or '—' }}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="wideye-usual-meta-label">Milk</label>
+                                            <div class="wideye-usual-meta-value">{{ product.milk or '—' }}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="wideye-usual-meta-label">Shot</label>
+                                            <div class="wideye-usual-meta-value">{{ product.shot or '—' }}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="wideye-usual-meta-label">Add-ons</label>
+                                            <div class="wideye-usual-meta-value">
+                                                {% if product.sugar or product.milk or product.shot %}
+                                                Available
+                                                {% else %}
+                                                No add-ons
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="wideye-usual-price-wrap">
+                                        <div class="wideye-usual-price">PhP {{ product.current_price }}</div>
+                                        <div class="wideye-usual-old-price">PhP {{ product.previous_price }}</div>
+                                    </div>
+
+                                    <div class="wideye-usual-select-button">
+                                        {% if is_selected %}Selected usual{% else %}Choose as usual{% endif %}
+                                    </div>
+
+                                    {% if is_selected %}
+                                    <div class="wideye-usual-badge">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        Currently selected
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </button>
+                            {% endfor %}
+                        </div>
+
+                        <div id="usualProductEmpty" class="wideye-usual-empty">
+                            No products match your search.
+                        </div>
+                    </div>
+
+                    <div class="wideye-profile-actions">
+                        {{ form.save_usual(class="wideye-profile-action wideye-profile-primary") }}
+                    </div>
+                </form>
+                {% else %}
+                <p class="wideye-profile-copy mb-0">No products are available to save as a usual order yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="wideye-face-card">
+                <h3 class="h5">Saved face samples</h3>
+                <p class="wideye-profile-copy">
+                    Open the camera page, then capture the required samples for center, face left, face right, and blink.
+                </p>
+                {% if face_images %}
+                <div class="wideye-face-grid">
+                    {% for image_name in face_images %}
+                    <div class="wideye-face-sample">
+                        <img src="{{ url_for('auth.profile_face_image', customer_id=customer.id, filename=image_name) }}" alt="Saved face sample {{ loop.index }}">
+                        <span class="wideye-face-caption">{{ image_name.rsplit('.', 1)[0].replace('_', ' ') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="mb-0 wideye-profile-copy">No face samples saved yet. Train your profile to make the usual order faster.</p>
+                {% endif %}
+            </div>
+        </section>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
+<script>
+(function () {
+    var searchInput = document.getElementById('usualProductSearch');
+    var select = document.getElementById('usualProductSelect');
+    var grid = document.getElementById('usualProductGrid');
+    var emptyState = document.getElementById('usualProductEmpty');
+    var results = document.getElementById('usualProductResults');
+    var hint = document.getElementById('usualProductHint');
+
+    if (!searchInput || !select || !grid) {
+        return;
+    }
+
+    var cards = Array.prototype.slice.call(grid.querySelectorAll('.wideye-usual-card'));
+
+    function applySelection(productId) {
+        select.value = String(productId);
+
+        cards.forEach(function (card) {
+            var isSelected = card.getAttribute('data-product-id') === String(productId);
+            card.classList.toggle('selected', isSelected);
+            card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+            var badge = card.querySelector('.wideye-usual-badge');
+            if (badge) {
+                badge.remove();
+            }
+
+            var actionButton = card.querySelector('.wideye-usual-select-button');
+            if (actionButton) {
+                actionButton.textContent = isSelected ? 'Selected usual' : 'Choose as usual';
+            }
+
+            if (isSelected) {
+                var selectedBadge = document.createElement('div');
+                selectedBadge.className = 'wideye-usual-badge';
+                selectedBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Currently selected';
+                card.appendChild(selectedBadge);
+            }
+        });
+    }
+
+    function applyFilter() {
+        var query = searchInput.value.trim().toLowerCase();
+        var visibleCount = 0;
+
+        if (!query) {
+            cards.forEach(function (card) {
+                card.style.display = 'none';
+            });
+            results.classList.remove('active');
+            emptyState.style.display = 'none';
+            hint.style.display = 'block';
+            return;
+        }
+
+        results.classList.add('active');
+        hint.style.display = 'none';
+
+        cards.forEach(function (card) {
+            var matches = card.getAttribute('data-search').indexOf(query) !== -1;
+            card.style.display = matches ? '' : 'none';
+            if (matches) {
+                visibleCount += 1;
+            }
+        });
+
+        emptyState.style.display = visibleCount ? 'none' : 'block';
+    }
+
+    cards.forEach(function (card) {
+        card.addEventListener('click', function () {
+            applySelection(card.getAttribute('data-product-id'));
+        });
+    });
+
+    if (select.value) {
+        applySelection(select.value);
+    } else if (cards.length) {
+        applySelection(cards[0].getAttribute('data-product-id'));
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    applyFilter();
+})();
+</script>
 {% endblock %}
