@@ -17,13 +17,67 @@ def parse_options(csv_string):
     return [opt.strip() for opt in str(csv_string).split(',') if opt.strip()]
 
 
+def get_product_image(product, selected_size=''):
+    """Return the image URL for a product given a selected size.
+
+    Images in product_picture are comma-separated, position-matched to the
+    comma-separated sizes in product.size.  Falls back to the first image.
+    """
+    images = parse_options(product.product_picture) if product.product_picture else []
+    if not images:
+        return '/media/default.jpg'
+
+    if not selected_size:
+        return images[0]
+
+    sizes = parse_options(product.size)
+    if selected_size in sizes:
+        idx = sizes.index(selected_size)
+        return images[idx] if idx < len(images) else images[-1]
+
+    return images[0]
+
+
+def normalize_product_selection(product, size='', sugar='', milk='', shot=''):
+    selected_size = (size or '').strip()
+    selected_sugar = (sugar or '').strip()
+    selected_milk = (milk or '').strip()
+    selected_shot = (shot or '').strip()
+
+    product_sizes = parse_options(product.size)
+    product_sugars = parse_options(product.sugar)
+    product_milks = parse_options(product.milk)
+    product_shots = parse_options(product.shot)
+
+    if selected_size and selected_size not in product_sizes:
+        selected_size = ''
+    if product_sizes and not selected_size:
+        selected_size = product_sizes[0]
+    if selected_sugar and selected_sugar not in product_sugars:
+        selected_sugar = ''
+    if selected_milk and selected_milk not in product_milks:
+        selected_milk = ''
+    if selected_shot and selected_shot not in product_shots:
+        selected_shot = ''
+
+    return {
+        'size': selected_size,
+        'sugar': selected_sugar,
+        'milk': selected_milk,
+        'shot': selected_shot,
+    }
+
+
 def format_option_summary(item):
     parts = []
 
+    size_val = getattr(item, 'size', '') or ''
     sugar_val = getattr(item, 'sugar', '') or ''
     milk_val = getattr(item, 'milk', '') or ''
     shot_val = getattr(item, 'shot', '') or ''
 
+    if size_val:
+        parts.append(f'Size: {size_val}')
     if sugar_val:
         parts.append(f'Sugar: {sugar_val}')
     if milk_val:
@@ -34,20 +88,22 @@ def format_option_summary(item):
     return ', '.join(parts) if parts else 'No add-ons'
 
 
-def add_product_to_customer_cart(customer_id, product, sugar='', milk='', shot=''):
+def add_product_to_customer_cart(customer_id, product, size='', sugar='', milk='', shot='', quantity=1):
     cart_item = Cart.query.filter_by(
         customer_link=customer_id,
         product_link=product.id,
+        size=size,
         sugar=sugar,
         milk=milk,
         shot=shot
     ).first()
 
     if cart_item:
-        cart_item.quantity += 1
+        cart_item.quantity += quantity
     else:
         cart_item = Cart()
-        cart_item.quantity = 1
+        cart_item.quantity = quantity
+        cart_item.size = size
         cart_item.sugar = sugar
         cart_item.milk = milk
         cart_item.shot = shot
@@ -60,14 +116,89 @@ def add_product_to_customer_cart(customer_id, product, sugar='', milk='', shot='
 
 
 def add_customer_usual_to_cart(customer):
-    if customer.usual_product is None:
+    if not customer.usual_items:
         return False, f'{customer.username} has not saved a usual order yet.'
 
-    if customer.usual_product.in_stock < 1:
-        return False, f'{customer.usual_product.product_name} is currently out of stock.'
+    for usual_item in customer.usual_items:
+        if usual_item.product is None:
+            return False, 'One of your saved usual items is no longer available.'
+        if usual_item.product.in_stock < usual_item.quantity:
+            return False, f'{usual_item.product.product_name} is currently out of stock.'
 
-    add_product_to_customer_cart(customer.id, customer.usual_product)
-    return True, f'Usual item added to cart for {customer.username}: {customer.usual_product.product_name}.'
+    for usual_item in customer.usual_items:
+        add_product_to_customer_cart(
+            customer.id,
+            usual_item.product,
+            size=usual_item.size,
+            sugar=usual_item.sugar,
+            milk=usual_item.milk,
+            shot=usual_item.shot,
+            quantity=usual_item.quantity,
+        )
+
+    return True, f'Usual items added to cart for {customer.username}.'
+
+
+def create_order_and_payment(customer_id, items_list):
+    """Create orders and initiate PayMongo payment.
+
+    Args:
+        customer_id: The customer's database ID.
+        items_list: List of dicts with keys: product, quantity, size, sugar, milk, shot.
+
+    Returns:
+        Dict with payment_intent_id, qr_image_url, redirect_url, total.
+    """
+    total = 0
+    for item in items_list:
+        total += item['product'].current_price * item['quantity']
+
+    total_with_shipping = total
+
+    pi = create_payment_intent(total_with_shipping, description='Wideye Kiosk order')
+    pi_id = pi['id']
+
+    attached = attach_qrph(pi_id)
+
+    for item in items_list:
+        new_order = Order()
+        new_order.quantity = item['quantity']
+        new_order.size = item.get('size', '')
+        new_order.sugar = item.get('sugar', '')
+        new_order.milk = item.get('milk', '')
+        new_order.shot = item.get('shot', '')
+        new_order.price = item['product'].current_price
+        new_order.status = 'Pending'
+        new_order.payment_id = pi_id
+        new_order.product_link = item['product'].id
+        new_order.customer_link = customer_id
+
+        db.session.add(new_order)
+
+        product = Product.query.get(item['product'].id)
+        product.in_stock -= item['quantity']
+
+    db.session.commit()
+
+    next_action = attached['attributes'].get('next_action') or {}
+    qr_image_url = None
+    redirect_url = None
+
+    if next_action.get('type') == 'consume_qr':
+        qr_image_url = next_action.get('code', {}).get('image_url')
+    elif next_action.get('type') == 'redirect':
+        redirect_url = next_action.get('redirect', {}).get('url')
+    elif next_action.get('type') == 'display_qr_code':
+        display_details = next_action.get('display_details', {})
+        qr_image_url = display_details.get('qr_image')
+        redirect_url = display_details.get('checkout_url')
+
+    return {
+        'payment_intent_id': pi_id,
+        'qr_image_url': qr_image_url,
+        'redirect_url': redirect_url,
+        'total': total_with_shipping,
+    }
 
 
 @views.route('/')
@@ -76,7 +207,7 @@ def home():
     items = Product.query.order_by(Product.date_added.desc()).all()
 
     return render_template('home.html', items=items, format_option_summary=format_option_summary,
-                           parse_options=parse_options,
+                           parse_options=parse_options, get_product_image=get_product_image,
                            cart=Cart.query.filter_by(customer_link=current_user.id).all()
                            if current_user.is_authenticated else [])
 
@@ -89,29 +220,22 @@ def add_to_cart(item_id):
         flash('Item not found')
         return redirect(request.referrer or '/')
 
-    selected_sugar = (request.values.get('sugar', '') or '').strip()
-    selected_milk = (request.values.get('milk', '') or '').strip()
-    selected_shot = (request.values.get('shot', '') or '').strip()
-
-    # Validate selections against product's available options
-    product_sugars = parse_options(item_to_add.sugar)
-    product_milks = parse_options(item_to_add.milk)
-    product_shots = parse_options(item_to_add.shot)
-
-    if selected_sugar and selected_sugar not in product_sugars:
-        selected_sugar = ''
-    if selected_milk and selected_milk not in product_milks:
-        selected_milk = ''
-    if selected_shot and selected_shot not in product_shots:
-        selected_shot = ''
+    selection = normalize_product_selection(
+        item_to_add,
+        size=request.values.get('size', ''),
+        sugar=request.values.get('sugar', ''),
+        milk=request.values.get('milk', ''),
+        shot=request.values.get('shot', ''),
+    )
 
     try:
         cart_item = add_product_to_customer_cart(
             current_user.id,
             item_to_add,
-            sugar=selected_sugar,
-            milk=selected_milk,
-            shot=selected_shot
+            size=selection['size'],
+            sugar=selection['sugar'],
+            milk=selection['milk'],
+            shot=selection['shot']
         )
         flash(f'{cart_item.product.product_name} added to cart')
     except Exception as e:
@@ -129,8 +253,9 @@ def show_cart():
     for item in cart:
         amount += item.product.current_price * item.quantity
 
-    return render_template('cart.html', cart=cart, amount=amount, total=amount+200,
-                           format_option_summary=format_option_summary)
+    return render_template('cart.html', cart=cart, amount=amount, total=amount,
+                           format_option_summary=format_option_summary,
+                           get_product_image=get_product_image)
 
 
 @views.route('/pluscart')
@@ -152,7 +277,7 @@ def plus_cart():
         data = {
             'quantity': cart_item.quantity,
             'amount': amount,
-            'total': amount + 200
+            'total': amount
         }
 
         return jsonify(data)
@@ -177,7 +302,7 @@ def minus_cart():
         data = {
             'quantity': cart_item.quantity,
             'amount': amount,
-            'total': amount + 200 #niggg
+            'total': amount
         }
 
         return jsonify(data)
@@ -202,7 +327,7 @@ def remove_cart():
         data = {
             'quantity': cart_item.quantity,
             'amount': amount,
-            'total': amount + 200
+            'total': amount
         }
 
         return jsonify(data)
@@ -217,68 +342,43 @@ def place_order():
         return redirect('/')
 
     try:
-        total = 0
+        items_list = [
+            {
+                'product': item.product,
+                'quantity': item.quantity,
+                'size': item.size,
+                'sugar': item.sugar,
+                'milk': item.milk,
+                'shot': item.shot,
+            }
+            for item in customer_cart
+        ]
+
+        result = create_order_and_payment(current_user.id, items_list)
+
         for item in customer_cart:
-            total += item.product.current_price * item.quantity
-
-        total_with_shipping = total + 200
-
-        pi = create_payment_intent(total_with_shipping, description='Wideye Kiosk order')
-        pi_id = pi['id']
-
-        attached = attach_qrph(pi_id)
-
-        for item in customer_cart:
-            new_order = Order()
-            new_order.quantity = item.quantity
-            new_order.sugar = item.sugar
-            new_order.milk = item.milk
-            new_order.shot = item.shot
-            new_order.price = item.product.current_price
-            new_order.status = 'Pending'
-            new_order.payment_id = pi_id
-
-            new_order.product_link = item.product_link
-            new_order.customer_link = item.customer_link
-
-            db.session.add(new_order)
-
-            product = Product.query.get(item.product_link)
-            product.in_stock -= item.quantity
-
             db.session.delete(item)
-
         db.session.commit()
-
-        next_action = attached['attributes'].get('next_action') or {}
-        qr_image_url = None
-        redirect_url = None
-
-        if next_action.get('type') == 'consume_qr':
-            qr_image_url = next_action.get('code', {}).get('image_url')
-        elif next_action.get('type') == 'redirect':
-            redirect_url = next_action.get('redirect', {}).get('url')
-        elif next_action.get('type') == 'display_qr_code':
-            display_details = next_action.get('display_details', {})
-            qr_image_url = display_details.get('qr_image')
-            redirect_url = display_details.get('checkout_url')
 
         return render_template(
             'payment_qr.html',
-            payment_intent_id=pi_id,
-            qr_image_url=qr_image_url,
-            redirect_url=redirect_url,
-            total=total_with_shipping,
+            payment_intent_id=result['payment_intent_id'],
+            qr_image_url=result['qr_image_url'],
+            redirect_url=result['redirect_url'],
+            total=result['total'],
+            orders=Order.query.filter_by(payment_id=result['payment_intent_id']).all(),
+            format_option_summary=format_option_summary,
+            get_product_image=get_product_image,
         )
     except Exception as e:
         db.session.rollback()
         print('PayMongo error:', e)
-        flash('Order not placed — payment could not be initiated.')
+        import traceback; traceback.print_exc()
+        flash(f'Order not placed — {e}')
         return redirect('/')
 
 
 @views.route('/check-payment/<payment_intent_id>')
-@login_required
 def check_payment(payment_intent_id):
     try:
         pi = retrieve_payment_intent(payment_intent_id)
@@ -287,7 +387,6 @@ def check_payment(payment_intent_id):
         if status == 'succeeded':
             Order.query.filter_by(
                 payment_id=payment_intent_id,
-                customer_link=current_user.id,
             ).update({'status': 'Accepted'})
             db.session.commit()
 
@@ -321,7 +420,8 @@ def paymongo_webhook():
 @login_required
 def order():
     orders = Order.query.filter_by(customer_link=current_user.id).all()
-    return render_template('orders.html', orders=orders, format_option_summary=format_option_summary)
+    return render_template('orders.html', orders=orders, format_option_summary=format_option_summary,
+                           get_product_image=get_product_image)
 
 
 @views.route('/usual-order', methods=['GET', 'POST'])
@@ -337,7 +437,7 @@ def usual_order():
         preview_url=url_for('views.preview_face_frame'),
         confirm_url=url_for('views.confirm_usual_order_frame'),
         reset_url='',
-        success_redirect=url_for('views.show_cart') if current_user.is_authenticated else url_for('views.home'),
+        success_redirect=url_for('views.home'),
     )
 
 
@@ -384,21 +484,76 @@ def confirm_usual_order_frame():
     if customer is None:
         return jsonify({'ok': False, 'message': f'No customer profile matched the detected face: {recognized_name}.'}), 404
 
-    ok, message = add_customer_usual_to_cart(customer)
+    usual_items = customer.usual_items
+    if not usual_items:
+        return jsonify({'ok': False, 'message': f'{customer.username} has not saved a usual order yet.'}), 400
 
-    if not ok:
-        return jsonify({'ok': False, 'message': message}), 400
+    for usual_item in usual_items:
+        if usual_item.product is None:
+            return jsonify({'ok': False, 'message': 'One of the saved usual items is no longer available.'}), 400
+        if usual_item.product.in_stock < usual_item.quantity:
+            return jsonify({'ok': False, 'message': f'{usual_item.product.product_name} is currently out of stock.'}), 400
 
-    redirect_url = url_for('views.home')
-    if current_user.is_authenticated and current_user.id == customer.id:
-        redirect_url = url_for('views.show_cart')
+    try:
+        payment = create_order_and_payment(customer.id, [
+            {
+                'product': usual_item.product,
+                'quantity': usual_item.quantity,
+                'size': usual_item.size,
+                'sugar': usual_item.sugar,
+                'milk': usual_item.milk,
+                'shot': usual_item.shot,
+            }
+            for usual_item in usual_items
+        ])
 
-    return jsonify({
-        'ok': True,
-        'message': message,
-        'recognized_name': recognized_name,
-        'redirect_url': redirect_url
-    })
+        return jsonify({
+            'ok': True,
+            'message': f'Order placed for {customer.username}. Proceed to payment.',
+            'recognized_name': recognized_name,
+            'redirect_url': url_for('views.usual_order_payment', pi_id=payment['payment_intent_id']),
+        })
+    except Exception as exc:
+        db.session.rollback()
+        print('Usual order payment error:', exc)
+        return jsonify({'ok': False, 'message': 'Order could not be placed — payment initiation failed.'}), 500
+
+
+@views.route('/usual-order/payment/<pi_id>')
+def usual_order_payment(pi_id):
+    """Payment page for usual orders — no login required."""
+    orders = Order.query.filter_by(payment_id=pi_id).all()
+    if not orders:
+        flash('No order found for this payment.')
+        return redirect('/')
+
+    total = sum(o.price * o.quantity for o in orders)
+
+    pi = retrieve_payment_intent(pi_id)
+    next_action = pi['attributes'].get('next_action') or {}
+    qr_image_url = None
+    redirect_url = None
+
+    if next_action.get('type') == 'consume_qr':
+        qr_image_url = next_action.get('code', {}).get('image_url')
+    elif next_action.get('type') == 'redirect':
+        redirect_url = next_action.get('redirect', {}).get('url')
+    elif next_action.get('type') == 'display_qr_code':
+        display_details = next_action.get('display_details', {})
+        qr_image_url = display_details.get('qr_image')
+        redirect_url = display_details.get('checkout_url')
+
+    return render_template(
+        'payment_qr.html',
+        payment_intent_id=pi_id,
+        qr_image_url=qr_image_url,
+        redirect_url=redirect_url,
+        total=total,
+        is_usual_order=True,
+        orders=orders,
+        format_option_summary=format_option_summary,
+        get_product_image=get_product_image,
+    )
 
 
 @views.route('/search', methods=['GET', 'POST'])
@@ -407,7 +562,8 @@ def search():
         search_query = request.form.get('search')
         items = Product.query.filter(Product.product_name.ilike(f'%{search_query}%')).all()
         return render_template('search.html', items=items, cart=Cart.query.filter_by(customer_link=current_user.id).all()
-                           if current_user.is_authenticated else [])
+                           if current_user.is_authenticated else [],
+                           get_product_image=get_product_image)
 
     return render_template('search.html')
 

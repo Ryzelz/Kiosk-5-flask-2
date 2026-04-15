@@ -97,6 +97,10 @@
                     <label class="form-label">{{ form.in_stock.label.text }}</label>
                     {{ form.in_stock(class="wideye-add-input", placeholder="0") }}
                 </div>
+                <div class="full">
+                    <label class="form-label">{{ form.size.label.text }}</label>
+                    {{ form.size(class="wideye-add-input", placeholder="Small, Medium, Large") }}
+                </div>
                 <div>
                     <label class="form-label">{{ form.sugar.label.text }}</label>
                     {{ form.sugar(class="wideye-add-input", placeholder="None, Light, Regular, Extra") }}
@@ -115,7 +119,8 @@
                 </div>
                 <div class="full">
                     <label class="form-label">{{ form.product_picture.label.text }}</label>
-                    {{ form.product_picture(class="wideye-add-file") }}
+                    {{ form.product_picture(class="wideye-add-file", multiple="multiple") }}
+                    <small class="text-secondary d-block mt-2">Upload one image per size option, in the same order.</small>
                 </div>
             </div>
 

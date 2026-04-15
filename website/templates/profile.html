@@ -128,8 +128,7 @@
         }
 
         .wideye-usual-search,
-        .wideye-usual-search:focus,
-        .wideye-usual-hidden-select {
+        .wideye-usual-search:focus {
             width: 100%;
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -137,10 +136,6 @@
             color: #ffffff;
             padding: 11px 14px 11px 42px;
             box-shadow: none;
-        }
-
-        .wideye-usual-hidden-select {
-            display: none;
         }
 
         .wideye-usual-results {
@@ -162,7 +157,6 @@
             padding: 0;
             text-align: left;
             transition: border-color 0.2s, transform 0.2s, background 0.2s;
-            cursor: pointer;
             width: 100%;
             color: inherit;
             overflow: hidden;
@@ -172,11 +166,6 @@
         .wideye-usual-card:hover {
             border-color: rgba(255, 191, 47, 0.35);
             transform: translateY(-2px);
-        }
-
-        .wideye-usual-card.selected {
-            border-color: rgba(255, 191, 47, 0.55);
-            background: rgba(255, 191, 47, 0.08);
         }
 
         .wideye-usual-card img {
@@ -220,6 +209,28 @@
             padding: 4px 10px;
         }
 
+        .wideye-usual-option-select,
+        .wideye-usual-option-select:disabled {
+            width: 100%;
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            color: #ffffff;
+            font-size: 0.82rem;
+            padding: 6px 10px;
+            color-scheme: dark;
+        }
+
+        .wideye-usual-option-select:disabled {
+            color: #7a869d;
+            opacity: 0.75;
+        }
+
+        .wideye-usual-option-select option {
+            background: #121a29;
+            color: #ffffff;
+        }
+
         .wideye-usual-badge {
             display: inline-flex;
             align-items: center;
@@ -231,6 +242,55 @@
             font-size: 0.76rem;
             font-weight: 700;
             margin-top: 12px;
+        }
+
+        .wideye-usual-saved-list {
+            display: grid;
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .wideye-usual-saved-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .wideye-usual-saved-thumb {
+            width: 84px;
+            height: 84px;
+            object-fit: cover;
+            border-radius: 14px;
+            background: #0f172a;
+            flex-shrink: 0;
+        }
+
+        .wideye-usual-saved-body {
+            flex: 1 1 240px;
+        }
+
+        .wideye-usual-saved-name {
+            color: #ffffff;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .wideye-usual-saved-meta {
+            color: #94a2bc;
+            font-size: 0.86rem;
+            margin: 0;
+        }
+
+        .wideye-usual-saved-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex: 0 0 auto;
         }
 
         .wideye-usual-price-wrap {
@@ -259,6 +319,15 @@
             border: none;
             border-radius: 999px;
             background: #24324b;
+            color: #ffffff;
+            font-weight: 700;
+            padding: 10px 16px;
+        }
+
+        .wideye-usual-remove-button {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            background: transparent;
             color: #ffffff;
             font-weight: 700;
             padding: 10px 16px;
@@ -359,8 +428,8 @@
                     <div class="wideye-profile-meta-item">
                         <span class="wideye-profile-meta-label">Saved usual</span>
                         <span class="wideye-profile-meta-value">
-                            {% if customer.usual_product %}
-                            {{ customer.usual_product.product_name }}
+                            {% if saved_usual_items %}
+                            {{ saved_usual_items | length }} item{% if saved_usual_items|length != 1 %}s{% endif %} saved
                             {% else %}
                             No usual order saved yet
                             {% endif %}
@@ -379,6 +448,12 @@
                 <div class="wideye-profile-actions">
                     <a class="wideye-profile-action wideye-profile-primary" href="{{ url_for('auth.train_usual_face', customer_id=customer.id) }}">Make order faster</a>
                     <a class="wideye-profile-action wideye-profile-secondary" href="#usualOrderEditor">Edit usual order</a>
+                    {% if saved_usual_items %}
+                    <form method="POST" class="d-inline">
+                        {{ form.hidden_tag() }}
+                        {{ form.remove_usual(class="wideye-profile-action wideye-profile-secondary") }}
+                    </form>
+                    {% endif %}
                 </div>
             </div>
 
@@ -386,72 +461,127 @@
                 <div class="wideye-usual-head">
                     <div>
                         <h3 class="h5 mb-1">Edit usual order</h3>
-                        <p class="wideye-profile-copy mb-0">Search the menu, then choose the item you want the kiosk to place quickly.</p>
+                        <p class="wideye-profile-copy mb-0">Search the menu, then add one or more items with the same interactive options used on the home page.</p>
                     </div>
                 </div>
 
+                {% if saved_usual_items %}
+                <div class="wideye-usual-saved-list">
+                    {% for usual_item in saved_usual_items %}
+                    <div class="wideye-usual-saved-item">
+                        <img
+                            class="wideye-usual-saved-thumb"
+                            src="{{ get_product_image(usual_item.product, usual_item.size) }}"
+                            alt="{{ usual_item.product.product_name }}"
+                        >
+                        <div class="wideye-usual-saved-body">
+                            <div class="wideye-usual-saved-name">{{ usual_item.product.product_name }}</div>
+                            <p class="wideye-usual-saved-meta">Qty {{ usual_item.quantity }} · PhP {{ '%.2f'|format(usual_item.product.current_price) }} each</p>
+                            <p class="wideye-usual-saved-meta">{{ format_option_summary(usual_item) }}</p>
+                        </div>
+                        <div class="wideye-usual-saved-actions">
+                            <form method="POST">
+                                {{ form.hidden_tag() }}
+                                <input type="hidden" name="remove_usual_item_id" value="{{ usual_item.id }}">
+                                <button type="submit" class="wideye-usual-remove-button">Remove</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="wideye-usual-hint">
+                    No usual items saved yet. Search below, choose the options you want, then add them to your usual order.
+                </div>
+                {% endif %}
+
                 {% if products %}
-                <form method="POST">
-                    {{ form.hidden_tag() }}
-                    {{ form.usual_product(class="wideye-usual-hidden-select", id="usualProductSelect") }}
+                <div class="wideye-usual-search-wrap">
+                    <label class="form-label" for="usualProductSearch">Search products</label>
+                    <i class="bi bi-search"></i>
+                    <input id="usualProductSearch" class="wideye-usual-search" type="search" placeholder="Search product name">
+                </div>
 
-                    <div class="wideye-usual-search-wrap">
-                        <label class="form-label" for="usualProductSearch">Search products</label>
-                        <i class="bi bi-search"></i>
-                        <input id="usualProductSearch" class="wideye-usual-search" type="search" placeholder="Search product name">
-                    </div>
+                <div id="usualProductHint" class="wideye-usual-hint">
+                    Start typing to search for a product. Matching items will appear here.
+                </div>
 
-                    <div id="usualProductHint" class="wideye-usual-hint">
-                        Start typing to search for a product. Matching items will appear here.
-                    </div>
-
-                    <div id="usualProductResults" class="wideye-usual-results">
-                        <div id="usualProductGrid" class="wideye-usual-grid">
-                            {% for product in products %}
-                            {% set is_selected = selected_usual_id == product.id %}
-                            <button
-                                type="button"
-                                class="wideye-usual-card{% if is_selected %} selected{% endif %}"
-                                data-product-id="{{ product.id }}"
-                                data-search="{{ product.product_name|lower }}"
-                                aria-pressed="{% if is_selected %}true{% else %}false{% endif %}"
+                <div id="usualProductResults" class="wideye-usual-results">
+                    <div id="usualProductGrid" class="wideye-usual-grid">
+                        {% for product in products %}
+                        {% set size_options = parse_options(product.size) %}
+                        {% set sugar_options = parse_options(product.sugar) %}
+                        {% set milk_options = parse_options(product.milk) %}
+                        {% set shot_options = parse_options(product.shot) %}
+                        {% set all_images = parse_options(product.product_picture) %}
+                        <div class="wideye-usual-card" data-search="{{ product.product_name|lower }}">
+                            <img
+                                src="{{ get_product_image(product) }}"
+                                alt="{{ product.product_name }}"
+                                class="wideye-usual-product-img"
+                                data-images="{{ all_images | join('||') }}"
                             >
-                                <img src="{{ product.product_picture }}" alt="{{ product.product_name }}">
-                                <div class="wideye-usual-card-body">
-                                    <div class="wideye-usual-name">{{ product.product_name }}</div>
-                                    <p class="wideye-usual-copy">Premium Wideye selection with rich flavor notes and carefully prepared presentation.</p>
+                            <div class="wideye-usual-card-body">
+                                <div class="wideye-usual-name">{{ product.product_name }}</div>
+                                <p class="wideye-usual-copy">Premium Wideye selection with rich flavor notes and carefully prepared presentation.</p>
+
+                                <form method="POST">
+                                    {{ form.hidden_tag() }}
+                                    <input type="hidden" name="add_usual_product_id" value="{{ product.id }}">
 
                                     <div class="row g-3 align-items-end">
                                         <div class="col-7">
                                             <label class="wideye-usual-meta-label">Size</label>
-                                            <div class="wideye-usual-meta-value">
-                                                {% if product.in_stock >= 250 %}
-                                                250ML
-                                                {% elif product.in_stock >= 200 %}
-                                                200G
-                                                {% elif product.in_stock >= 100 %}
-                                                100G
-                                                {% else %}
-                                                Limited
-                                                {% endif %}
-                                            </div>
+                                            {% if size_options %}
+                                            <select class="wideye-usual-option-select wideye-usual-size-select" name="size">
+                                                {% for opt in size_options %}
+                                                <option value="{{ opt }}">{{ opt }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            {% else %}
+                                            <div class="wideye-usual-meta-value">Standard</div>
+                                            {% endif %}
                                         </div>
                                         <div class="col-5">
                                             <label class="wideye-usual-meta-label">Sugar</label>
-                                            <div class="wideye-usual-meta-value">{{ product.sugar or '—' }}</div>
+                                            <select class="wideye-usual-option-select" name="sugar" {% if not sugar_options %}disabled{% endif %}>
+                                                {% if not sugar_options %}
+                                                <option value="">—</option>
+                                                {% else %}
+                                                {% for opt in sugar_options %}
+                                                <option value="{{ opt }}">{{ opt }}</option>
+                                                {% endfor %}
+                                                {% endif %}
+                                            </select>
                                         </div>
                                         <div class="col-4">
                                             <label class="wideye-usual-meta-label">Milk</label>
-                                            <div class="wideye-usual-meta-value">{{ product.milk or '—' }}</div>
+                                            <select class="wideye-usual-option-select" name="milk" {% if not milk_options %}disabled{% endif %}>
+                                                {% if not milk_options %}
+                                                <option value="">—</option>
+                                                {% else %}
+                                                {% for opt in milk_options %}
+                                                <option value="{{ opt }}">{{ opt }}</option>
+                                                {% endfor %}
+                                                {% endif %}
+                                            </select>
                                         </div>
                                         <div class="col-4">
                                             <label class="wideye-usual-meta-label">Shot</label>
-                                            <div class="wideye-usual-meta-value">{{ product.shot or '—' }}</div>
+                                            <select class="wideye-usual-option-select" name="shot" {% if not shot_options %}disabled{% endif %}>
+                                                {% if not shot_options %}
+                                                <option value="">—</option>
+                                                {% else %}
+                                                {% for opt in shot_options %}
+                                                <option value="{{ opt }}">{{ opt }}</option>
+                                                {% endfor %}
+                                                {% endif %}
+                                            </select>
                                         </div>
                                         <div class="col-4">
                                             <label class="wideye-usual-meta-label">Add-ons</label>
                                             <div class="wideye-usual-meta-value">
-                                                {% if product.sugar or product.milk or product.shot %}
+                                                {% if sugar_options or milk_options or shot_options %}
                                                 Available
                                                 {% else %}
                                                 No add-ons
@@ -465,30 +595,26 @@
                                         <div class="wideye-usual-old-price">PhP {{ product.previous_price }}</div>
                                     </div>
 
-                                    <div class="wideye-usual-select-button">
-                                        {% if is_selected %}Selected usual{% else %}Choose as usual{% endif %}
-                                    </div>
-
-                                    {% if is_selected %}
-                                    <div class="wideye-usual-badge">
-                                        <i class="bi bi-check-circle-fill"></i>
-                                        Currently selected
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </button>
-                            {% endfor %}
+                                    <button type="submit" name="save_usual" value="1" class="wideye-usual-select-button">Add to usual</button>
+                                </form>
+                            </div>
                         </div>
-
-                        <div id="usualProductEmpty" class="wideye-usual-empty">
-                            No products match your search.
-                        </div>
+                        {% endfor %}
                     </div>
 
-                    <div class="wideye-profile-actions">
-                        {{ form.save_usual(class="wideye-profile-action wideye-profile-primary") }}
+                    <div id="usualProductEmpty" class="wideye-usual-empty">
+                        No products match your search.
                     </div>
-                </form>
+                </div>
+
+                {% if saved_usual_items %}
+                <div class="wideye-profile-actions">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        {{ form.remove_usual(class="wideye-profile-action wideye-profile-secondary") }}
+                    </form>
+                </div>
+                {% endif %}
                 {% else %}
                 <p class="wideye-profile-copy mb-0">No products are available to save as a usual order yet.</p>
                 {% endif %}
@@ -521,44 +647,16 @@
 <script>
 (function () {
     var searchInput = document.getElementById('usualProductSearch');
-    var select = document.getElementById('usualProductSelect');
     var grid = document.getElementById('usualProductGrid');
     var emptyState = document.getElementById('usualProductEmpty');
     var results = document.getElementById('usualProductResults');
     var hint = document.getElementById('usualProductHint');
 
-    if (!searchInput || !select || !grid) {
+    if (!searchInput || !grid) {
         return;
     }
 
     var cards = Array.prototype.slice.call(grid.querySelectorAll('.wideye-usual-card'));
-
-    function applySelection(productId) {
-        select.value = String(productId);
-
-        cards.forEach(function (card) {
-            var isSelected = card.getAttribute('data-product-id') === String(productId);
-            card.classList.toggle('selected', isSelected);
-            card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-
-            var badge = card.querySelector('.wideye-usual-badge');
-            if (badge) {
-                badge.remove();
-            }
-
-            var actionButton = card.querySelector('.wideye-usual-select-button');
-            if (actionButton) {
-                actionButton.textContent = isSelected ? 'Selected usual' : 'Choose as usual';
-            }
-
-            if (isSelected) {
-                var selectedBadge = document.createElement('div');
-                selectedBadge.className = 'wideye-usual-badge';
-                selectedBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Currently selected';
-                card.appendChild(selectedBadge);
-            }
-        });
-    }
 
     function applyFilter() {
         var query = searchInput.value.trim().toLowerCase();
@@ -588,20 +686,22 @@
         emptyState.style.display = visibleCount ? 'none' : 'block';
     }
 
-    cards.forEach(function (card) {
-        card.addEventListener('click', function () {
-            applySelection(card.getAttribute('data-product-id'));
-        });
-    });
-
-    if (select.value) {
-        applySelection(select.value);
-    } else if (cards.length) {
-        applySelection(cards[0].getAttribute('data-product-id'));
-    }
-
     searchInput.addEventListener('input', applyFilter);
     applyFilter();
 })();
+
+document.querySelectorAll('.wideye-usual-size-select').forEach(function(select) {
+    select.addEventListener('change', function() {
+        var card = this.closest('.wideye-usual-card');
+        var img = card.querySelector('.wideye-usual-product-img');
+        var images = (img.dataset.images || '').split('||').map(function(s){ return s.trim(); }).filter(Boolean);
+        var idx = this.selectedIndex;
+        if (idx < images.length) {
+            img.src = images[idx];
+        } else if (images.length > 0) {
+            img.src = images[images.length - 1];
+        }
+    });
+});
 </script>
 {% endblock %}

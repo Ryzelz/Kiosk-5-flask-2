@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, FloatField, PasswordField, EmailField, BooleanField, SubmitField, SelectField
 from wtforms.validators import DataRequired, InputRequired, Optional, length, NumberRange
-from flask_wtf.file import FileField, FileRequired
+from flask_wtf.file import FileField, FileRequired, MultipleFileField
 
 
 class SignUpForm(FlaskForm):
@@ -26,8 +26,8 @@ class PasswordChangeForm(FlaskForm):
 
 
 class UsualOrderForm(FlaskForm):
-    usual_product = SelectField('Choose your usual order', coerce=int, validators=[DataRequired()])
-    save_usual = SubmitField('Save usual')
+    save_usual = SubmitField('Add to usual')
+    remove_usual = SubmitField('Remove all usual')
 
 
 class ShopItemsForm(FlaskForm):
@@ -35,10 +35,11 @@ class ShopItemsForm(FlaskForm):
     current_price = FloatField('Current Price', validators=[DataRequired()])
     previous_price = FloatField('Previous Price', validators=[DataRequired()])
     in_stock = IntegerField('In Stock', validators=[InputRequired(), NumberRange(min=0)])
+    size = StringField('Size Options (comma-separated)', validators=[Optional()])
     sugar = StringField('Sugar Options (comma-separated)', validators=[Optional()])
     milk = StringField('Milk Options (comma-separated)', validators=[Optional()])
     shot = StringField('Shot Options (comma-separated)', validators=[Optional()])
-    product_picture = FileField('Product Picture', validators=[DataRequired()])
+    product_picture = MultipleFileField('Product Pictures')
     flash_sale = BooleanField('Flash Sale')
 
     add_product = SubmitField('Add Product')
@@ -50,10 +51,11 @@ class UpdateShopItemsForm(FlaskForm):
     current_price = FloatField('Current Price', validators=[Optional(), NumberRange(min=0)])
     previous_price = FloatField('Previous Price', validators=[Optional(), NumberRange(min=0)])
     in_stock = IntegerField('In Stock', validators=[Optional(), NumberRange(min=0)])
+    size = StringField('Size Options (comma-separated)', validators=[Optional()])
     sugar = StringField('Sugar Options (comma-separated)', validators=[Optional()])
     milk = StringField('Milk Options (comma-separated)', validators=[Optional()])
     shot = StringField('Shot Options (comma-separated)', validators=[Optional()])
-    product_picture = FileField('Product Picture')
+    product_picture = MultipleFileField('Product Pictures')
     flash_sale = BooleanField('Flash Sale')
 
     update_product = SubmitField('Save Changes')

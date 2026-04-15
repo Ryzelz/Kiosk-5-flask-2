@@ -1,12 +1,18 @@
 from flask import Blueprint, render_template, flash, redirect, request, url_for, send_from_directory, jsonify
 from .forms import LoginForm, SignUpForm, PasswordChangeForm, UsualOrderForm
-from .models import Customer, Product
+from .models import Customer, Product, UsualOrderItem
 from . import db
 from flask_login import login_user, login_required, logout_user, current_user
 from .face_profiles import get_face_profile_dir, list_saved_face_images, normalize_face_profile_name
+from .views import get_product_image, parse_options, format_option_summary, normalize_product_selection
 
 
 auth = Blueprint('auth', __name__)
+
+
+def sync_primary_usual_product(customer):
+    first_item = customer.usual_items[0] if customer.usual_items else None
+    customer.usual_product_id = first_item.product_link if first_item else None
 
 
 @auth.route('/sign-up', methods=['GET', 'POST'])
@@ -93,35 +99,69 @@ def profile(customer_id):
 
     form = UsualOrderForm()
     products = Product.query.order_by(Product.product_name.asc()).all()
-    form.usual_product.choices = [
-        (product.id, f'{product.product_name} - PhP {product.current_price:.2f}')
-        for product in products
-    ]
     face_images = list_saved_face_images(customer.face_profile_name)
+    saved_usual_items = customer.usual_items
 
-    if not form.usual_product.choices:
-        flash('No products are available to save as a usual order yet.')
-        return render_template(
-            'profile.html',
-            customer=customer,
-            form=form,
-            face_images=face_images,
-            products=products,
-            selected_usual_id=None,
+    if request.method == 'POST' and request.form.get('remove_usual_item_id'):
+        usual_item = UsualOrderItem.query.filter_by(
+            id=request.form.get('remove_usual_item_id'),
+            customer_link=customer.id,
+        ).first_or_404()
+        product_name = usual_item.product.product_name if usual_item.product else 'Saved item'
+        db.session.delete(usual_item)
+        db.session.flush()
+        sync_primary_usual_product(customer)
+        db.session.commit()
+        flash(f'{product_name} removed from your usual order.')
+        return redirect(url_for('auth.profile', customer_id=customer.id))
+
+    if request.method == 'POST' and 'remove_usual' in request.form:
+        for usual_item in list(customer.usual_items):
+            db.session.delete(usual_item)
+        customer.usual_product_id = None
+        db.session.commit()
+        flash('Your usual order has been removed.')
+        return redirect(url_for('auth.profile', customer_id=customer.id))
+
+    if request.method == 'POST' and request.form.get('add_usual_product_id'):
+        selected_product = Product.query.get_or_404(request.form.get('add_usual_product_id'))
+        selection = normalize_product_selection(
+            selected_product,
+            size=request.form.get('size', ''),
+            sugar=request.form.get('sugar', ''),
+            milk=request.form.get('milk', ''),
+            shot=request.form.get('shot', ''),
         )
 
-    if request.method == 'GET':
-        form.usual_product.data = customer.usual_product_id or products[0].id
+        existing_item = UsualOrderItem.query.filter_by(
+            customer_link=customer.id,
+            product_link=selected_product.id,
+            size=selection['size'],
+            sugar=selection['sugar'],
+            milk=selection['milk'],
+            shot=selection['shot'],
+        ).first()
 
-    if form.validate_on_submit():
-        selected_product = Product.query.get_or_404(form.usual_product.data)
-        customer.usual_product_id = selected_product.id
+        if existing_item:
+            existing_item.quantity += 1
+        else:
+            db.session.add(UsualOrderItem(
+                customer_link=customer.id,
+                product_link=selected_product.id,
+                quantity=1,
+                size=selection['size'],
+                sugar=selection['sugar'],
+                milk=selection['milk'],
+                shot=selection['shot'],
+            ))
 
         if not customer.face_profile_name:
             customer.face_profile_name = normalize_face_profile_name(customer.username)
 
+        db.session.flush()
+        sync_primary_usual_product(customer)
         db.session.commit()
-        flash(f'Your usual order is now {selected_product.product_name}.')
+        flash(f'{selected_product.product_name} added to your usual order.')
         return redirect(url_for('auth.profile', customer_id=customer.id))
 
     return render_template(
@@ -130,7 +170,10 @@ def profile(customer_id):
         form=form,
         face_images=face_images,
         products=products,
-        selected_usual_id=form.usual_product.data or customer.usual_product_id,
+        saved_usual_items=saved_usual_items,
+        get_product_image=get_product_image,
+        parse_options=parse_options,
+        format_option_summary=format_option_summary,
     )
 
 

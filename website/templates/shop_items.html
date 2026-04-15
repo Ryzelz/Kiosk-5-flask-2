@@ -128,7 +128,7 @@
     <div class="wideye-admin-grid">
         {% for item in items %}
         <article class="wideye-admin-card">
-            <img src="{{ item.product_picture }}" alt="{{ item.product_name }}">
+            <img src="{{ get_product_image(item) }}" alt="{{ item.product_name }}">
             <div class="wideye-admin-body">
                 <div class="d-flex align-items-start justify-content-between gap-3">
                     <div>
@@ -152,6 +152,10 @@
                     <div class="wideye-admin-pill">
                         <span class="wideye-admin-label">In Stock</span>
                         <span class="wideye-admin-value">{{ item.in_stock }}</span>
+                    </div>
+                    <div class="wideye-admin-pill">
+                        <span class="wideye-admin-label">Sizes</span>
+                        <span class="wideye-admin-value">{{ item.size or '—' }}</span>
                     </div>
                     <div class="wideye-admin-pill">
                         <span class="wideye-admin-label">Add-ons</span>

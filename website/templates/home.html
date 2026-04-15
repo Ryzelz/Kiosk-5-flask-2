@@ -184,13 +184,16 @@
         {% for item in item_list %}
         <div class="col">
             <div class="wideye-product-card">
-                <img src="{{ item.product_picture }}" alt="{{ item.product_name }}">
+                {% set all_images = parse_options(item.product_picture) %}
+                <img src="{{ get_product_image(item) }}" alt="{{ item.product_name }}"
+                     data-images="{{ all_images | join('||') }}" class="wideye-product-img">
                 <div class="wideye-product-body">
                     <h3 class="wideye-product-title">{{ item.product_name }}</h3>
                     <p class="wideye-product-copy">
                         Premium Wideye selection with rich flavor notes and carefully prepared presentation.
                     </p>
 
+                    {% set size_options = parse_options(item.size) %}
                     {% set sugar_options = parse_options(item.sugar) %}
                     {% set milk_options = parse_options(item.milk) %}
                     {% set shot_options = parse_options(item.shot) %}
@@ -198,17 +201,15 @@
                     <div class="row g-3 align-items-end">
                         <div class="col-7">
                             <label class="wideye-meta-label">Size</label>
-                            <div class="wideye-meta-value">
-                                {% if item.in_stock >= 250 %}
-                                250ML
-                                {% elif item.in_stock >= 200 %}
-                                200G
-                                {% elif item.in_stock >= 100 %}
-                                100G
-                                {% else %}
-                                Limited
-                                {% endif %}
-                            </div>
+                            {% if size_options %}
+                            <select class="wideye-option-select wideye-size-select" name="size">
+                                {% for opt in size_options %}
+                                <option value="{{ opt }}">{{ opt }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <div class="wideye-meta-value">Standard</div>
+                            {% endif %}
                         </div>
                         <div class="col-5">
                             <label class="wideye-meta-label">Sugar</label>
@@ -273,4 +274,20 @@
     </section>
     {% endif %}
 </div>
+
+<script>
+document.querySelectorAll('.wideye-size-select').forEach(function(select) {
+    select.addEventListener('change', function() {
+        var card = this.closest('.wideye-product-card');
+        var img = card.querySelector('.wideye-product-img');
+        var images = img.dataset.images.split('||').map(function(s){ return s.trim(); }).filter(Boolean);
+        var idx = this.selectedIndex;
+        if (idx < images.length) {
+            img.src = images[idx];
+        } else if (images.length > 0) {
+            img.src = images[images.length - 1];
+        }
+    });
+});
+</script>
 {% endblock %}

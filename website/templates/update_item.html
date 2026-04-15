@@ -121,7 +121,7 @@
 
     <div class="wideye-update-layout">
         <aside class="wideye-update-card">
-            <img src="{{ item.product_picture }}" alt="{{ item.product_name }}">
+            <img src="{{ get_product_image(item) }}" alt="{{ item.product_name }}">
             <h2 class="h5 mb-1">{{ item.product_name }}</h2>
             <p class="text-secondary mb-3">Product #{{ item.id }}</p>
 
@@ -142,6 +142,21 @@
                     <span class="wideye-update-label">Add-on Limits</span>
                     <span class="wideye-update-value">Sugar: {{ item.sugar or '—' }} • Milk: {{ item.milk or '—' }} • Shot: {{ item.shot or '—' }}</span>
                 </div>
+                <div class="wideye-update-meta-item">
+                    <span class="wideye-update-label">Size Options</span>
+                    <span class="wideye-update-value">{{ item.size or '—' }}</span>
+                </div>
+                {% set all_images = parse_options(item.product_picture) %}
+                {% if all_images | length > 1 %}
+                <div class="wideye-update-meta-item">
+                    <span class="wideye-update-label">Images ({{ all_images | length }})</span>
+                    <div class="d-flex flex-wrap gap-2 mt-1">
+                        {% for img_url in all_images %}
+                        <img src="{{ img_url }}" alt="Image {{ loop.index }}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.1);">
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </aside>
 
@@ -157,6 +172,10 @@
                     <div>
                         <label class="form-label">{{ form.in_stock.label.text }}</label>
                         {{ form.in_stock(class="wideye-update-input") }}
+                    </div>
+                    <div class="full">
+                        <label class="form-label">{{ form.size.label.text }}</label>
+                        {{ form.size(class="wideye-update-input", placeholder="Small, Medium, Large") }}
                     </div>
                     <div>
                         <label class="form-label">{{ form.previous_price.label.text }}</label>
@@ -184,8 +203,8 @@
                     </div>
                     <div class="full">
                         <label class="form-label">{{ form.product_picture.label.text }}</label>
-                        {{ form.product_picture(class="wideye-update-file") }}
-                        <small class="text-secondary d-block mt-2">Leave this empty if you want to keep the current product picture.</small>
+                        {{ form.product_picture(class="wideye-update-file", multiple="multiple") }}
+                        <small class="text-secondary d-block mt-2">Upload one image per size option. Leave empty to keep current pictures.</small>
                     </div>
                 </div>
 

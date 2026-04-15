@@ -22,6 +22,12 @@ def create_database():
     print('Database Created')
 
 
+def _parse_csv_options(value):
+    if not value:
+        return []
+    return [opt.strip() for opt in str(value).split(',') if opt.strip()]
+
+
 def sync_customer_schema():
     inspector = inspect(db.engine)
 
@@ -78,6 +84,9 @@ def sync_product_schema():
     if 'shot' not in existing_columns:
         statements.append("ALTER TABLE product ADD COLUMN shot VARCHAR(500) DEFAULT '' NOT NULL")
 
+    if 'size' not in existing_columns:
+        statements.append("ALTER TABLE product ADD COLUMN size VARCHAR(500) DEFAULT '' NOT NULL")
+
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
@@ -106,6 +115,9 @@ def sync_cart_schema():
 
     if 'shot' not in existing_columns:
         statements.append("ALTER TABLE cart ADD COLUMN shot VARCHAR(100) DEFAULT '' NOT NULL")
+
+    if 'size' not in existing_columns:
+        statements.append("ALTER TABLE cart ADD COLUMN size VARCHAR(100) DEFAULT '' NOT NULL")
 
     with db.engine.begin() as connection:
         for statement in statements:
@@ -138,6 +150,9 @@ def sync_order_schema():
     if 'shot' not in existing_columns:
         statements.append("ALTER TABLE \"order\" ADD COLUMN shot VARCHAR(100) DEFAULT '' NOT NULL")
 
+    if 'size' not in existing_columns:
+        statements.append("ALTER TABLE \"order\" ADD COLUMN size VARCHAR(100) DEFAULT '' NOT NULL")
+
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
@@ -150,6 +165,42 @@ def sync_order_schema():
             connection.execute(text(
                 f'UPDATE "order" SET {col} = \'\' WHERE {col} IS NULL OR TRIM(CAST({col} AS TEXT)) = \'\' OR TRIM(CAST({col} AS TEXT)) = \'0\''
             ))
+
+
+def sync_usual_order_schema():
+    inspector = inspect(db.engine)
+
+    if not inspector.has_table('usual_order_item'):
+        return
+
+    from .models import Customer, UsualOrderItem
+
+    migrated = False
+    customers = Customer.query.filter(Customer.usual_product_id.isnot(None)).all()
+
+    for customer in customers:
+        if customer.usual_items:
+            continue
+
+        if customer.usual_product is None:
+            customer.usual_product_id = None
+            migrated = True
+            continue
+
+        size_options = _parse_csv_options(customer.usual_product.size)
+        db.session.add(UsualOrderItem(
+            customer_link=customer.id,
+            product_link=customer.usual_product.id,
+            quantity=1,
+            size=size_options[0] if size_options else '',
+            sugar='',
+            milk='',
+            shot='',
+        ))
+        migrated = True
+
+    if migrated:
+        db.session.commit()
 
 
 def create_app():
@@ -193,6 +244,7 @@ def create_app():
         sync_product_schema()
         sync_cart_schema()
         sync_order_schema()
+        sync_usual_order_schema()
 
     return app
 

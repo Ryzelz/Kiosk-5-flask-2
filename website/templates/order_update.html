@@ -166,7 +166,7 @@
             </div>
 
             <div class="wideye-order-product">
-                <img src="{{ order.product.product_picture }}" alt="{{ order.product.product_name }}">
+                <img src="{{ get_product_image(order.product, order.size) }}" alt="{{ order.product.product_name }}">
                 <div>
                     <div class="fw-semibold text-white">{{ order.product.product_name }}</div>
                     <div class="wideye-order-update-copy">PhP {{ order.price }} each</div>
@@ -182,6 +182,10 @@
                 <div class="wideye-order-update-meta">
                     <span class="wideye-order-update-label">Email</span>
                     <span class="wideye-order-update-value">{{ order.customer.email }}</span>
+                </div>
+                <div class="wideye-order-update-meta">
+                    <span class="wideye-order-update-label">Size</span>
+                    <span class="wideye-order-update-value">{{ order.size or '—' }}</span>
                 </div>
                 <div class="wideye-order-update-meta">
                     <span class="wideye-order-update-label">Add-ons</span>

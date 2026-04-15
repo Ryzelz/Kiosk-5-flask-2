@@ -17,6 +17,12 @@ class Customer(db.Model, UserMixin):
     cart_items = db.relationship('Cart', backref=db.backref('customer', lazy=True))
     orders = db.relationship('Order', backref=db.backref('customer', lazy=True))
     usual_product = db.relationship('Product', foreign_keys=[usual_product_id])
+    usual_items = db.relationship(
+        'UsualOrderItem',
+        backref=db.backref('customer', lazy=True),
+        cascade='all, delete-orphan',
+        order_by='UsualOrderItem.id'
+    )
 
     @property
     def password(self):
@@ -39,23 +45,41 @@ class Product(db.Model):
     current_price = db.Column(db.Float, nullable=False)
     previous_price = db.Column(db.Float, nullable=False)
     in_stock = db.Column(db.Integer, nullable=False)
+    size = db.Column(db.String(500), nullable=False, default='')
     sugar = db.Column(db.String(500), nullable=False, default='')
     milk = db.Column(db.String(500), nullable=False, default='')
     shot = db.Column(db.String(500), nullable=False, default='')
-    product_picture = db.Column(db.String(1000), nullable=False)
+    product_picture = db.Column(db.Text, nullable=False)
     flash_sale = db.Column(db.Boolean, default=False)
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
 
     carts = db.relationship('Cart', backref=db.backref('product', lazy=True))
     orders = db.relationship('Order', backref=db.backref('product', lazy=True))
+    usual_items = db.relationship('UsualOrderItem', backref=db.backref('product', lazy=True))
 
     def __str__(self):
         return '<Product %r>' % self.product_name
 
 
+class UsualOrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    size = db.Column(db.String(100), nullable=False, default='')
+    sugar = db.Column(db.String(100), nullable=False, default='')
+    milk = db.Column(db.String(100), nullable=False, default='')
+    shot = db.Column(db.String(100), nullable=False, default='')
+
+    customer_link = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    product_link = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+
+    def __str__(self):
+        return '<UsualOrderItem %r>' % self.id
+
+
 class Cart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
+    size = db.Column(db.String(100), nullable=False, default='')
     sugar = db.Column(db.String(100), nullable=False, default='')
     milk = db.Column(db.String(100), nullable=False, default='')
     shot = db.Column(db.String(100), nullable=False, default='')
@@ -70,6 +94,7 @@ class Cart(db.Model):
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
+    size = db.Column(db.String(100), nullable=False, default='')
     sugar = db.Column(db.String(100), nullable=False, default='')
     milk = db.Column(db.String(100), nullable=False, default='')
     shot = db.Column(db.String(100), nullable=False, default='')

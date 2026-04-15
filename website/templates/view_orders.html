@@ -132,11 +132,11 @@
                     </td>
                     <td>
                         <div class="d-flex align-items-center gap-2">
-                            <img class="wideye-order-img" src="{{ order.product.product_picture }}" alt="{{ order.product.product_name }}">
+                            <img class="wideye-order-img" src="{{ get_product_image(order.product, order.size) }}" alt="{{ order.product.product_name }}">
                             <span style="color:#fff;font-weight:600;">{{ order.product.product_name }}</span>
                         </div>
                     </td>
-                    <td>{{ order.sugar if order.sugar else '—' }} · {{ order.milk if order.milk else '—' }} · {{ order.shot if order.shot else '—' }}</td>
+                    <td>{{ order.size if order.size else '—' }} · {{ order.sugar if order.sugar else '—' }} · {{ order.milk if order.milk else '—' }} · {{ order.shot if order.shot else '—' }}</td>
                     <td style="font-weight:600;color:#fff;">PhP {{ order.price }}</td>
                     <td>{{ order.quantity }}</td>
                     <td>
@@ -146,7 +146,10 @@
                         </span>
                     </td>
                     <td>
-                        <a href="/update-order/{{ order.id }}" class="wideye-order-action">Update</a>
+                        <div class="d-flex gap-2">
+                            <a href="/update-order/{{ order.id }}" class="wideye-order-action">Update</a>
+                            <a href="/delete-order/{{ order.id }}" class="wideye-order-action" style="background:rgba(255,99,132,0.15);color:#ff6384;" onclick="return confirm('Delete order #{{ order.id }}?')">Delete</a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

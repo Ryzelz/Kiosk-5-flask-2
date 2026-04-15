@@ -128,7 +128,7 @@
     <div class="wideye-search-grid">
         {% for item in item_list %}
         <article class="wideye-search-card">
-            <img src="{{ item.product_picture }}" alt="{{ item.product_name }}">
+            <img src="{{ get_product_image(item) }}" alt="{{ item.product_name }}">
             <div class="wideye-search-body">
                 <h2 class="wideye-search-name">{{ item.product_name }}</h2>
                 <p class="wideye-search-stock">{{ item.in_stock }} in stock</p>
