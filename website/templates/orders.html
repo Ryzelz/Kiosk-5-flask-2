@@ -4,21 +4,82 @@
 
 {% block body %}
 
-<div class="container my-5">
+<style>
+    .wideye-orders-shell {
+        width: min(calc(100% - 1rem), 1180px);
+        margin: 1.5rem auto 2rem;
+    }
+
+    .wideye-orders-card {
+        background: #121a29;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        color: #f6f7fb;
+    }
+
+    .wideye-orders-card .card-body {
+        background: transparent;
+        color: inherit;
+    }
+
+    .wideye-orders-card h3,
+    .wideye-orders-card p,
+    .wideye-orders-card .col-sm-4,
+    .wideye-orders-card .col-sm-7 {
+        color: #f6f7fb;
+    }
+
+    .wideye-orders-card .text-muted {
+        color: rgba(226, 232, 240, 0.78) !important;
+    }
+
+    .wideye-orders-card .progress {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .wideye-orders-thumb {
+        width: 130px;
+        height: 130px;
+        object-fit: cover;
+        border-radius: 14px;
+        background: #0f172a;
+    }
+
+    @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+        .wideye-orders-shell {
+            margin: 1rem auto 1.25rem;
+        }
+
+        .wideye-orders-card {
+            border-radius: 16px;
+        }
+
+        .wideye-orders-card .card-body {
+            padding: 14px;
+        }
+
+        .wideye-orders-thumb {
+            width: 96px;
+            height: 96px;
+        }
+    }
+</style>
+
+<div class="wideye-orders-shell">
 
     <div class="row">
         {% if orders %}
 
         <h1 class="text-center mb-5" style="color: white;">Orders</h1>
         <div class="col-sm-13">
-            <div class="card">
+            <div class="card wideye-orders-card">
                 <div class="card-body">
                     <!-- <h3>Orders</h3> -->
                     {% for item in orders %}
 
                     <div class="row">
                         <div class="col-sm-3 text-center align-self-center">
-                            <img src="{{ get_product_image(item.product, item.size) }}" alt="" class="img-fluid img-thumbnail shadow-sm" height="150px" width="150px">
+                            <img src="{{ get_product_image(item.product, item.size) }}" alt="" class="img-fluid wideye-orders-thumb shadow-sm">
                         </div>
                         <div class="col-sm-7">
                             

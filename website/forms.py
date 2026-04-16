@@ -25,6 +25,17 @@ class PasswordChangeForm(FlaskForm):
     change_password = SubmitField('Change Password')
 
 
+class ProfileUpdateForm(FlaskForm):
+    email = EmailField('Email', validators=[DataRequired()])
+    username = StringField('Username', validators=[DataRequired(), length(min=2)])
+    update_account = SubmitField('Save Account Changes')
+
+
+class DeleteAccountForm(FlaskForm):
+    current_password = PasswordField('Current Password', validators=[DataRequired(), length(min=6)])
+    delete_account = SubmitField('Delete Account')
+
+
 class UsualOrderForm(FlaskForm):
     save_usual = SubmitField('Add to usual')
     remove_usual = SubmitField('Remove all usual')
@@ -59,6 +70,13 @@ class UpdateShopItemsForm(FlaskForm):
     flash_sale = BooleanField('Flash Sale')
 
     update_product = SubmitField('Save Changes')
+
+
+class AdminCustomerUpdateForm(FlaskForm):
+    email = EmailField('Email', validators=[DataRequired()])
+    username = StringField('Username', validators=[DataRequired(), length(min=2)])
+    is_admin = BooleanField('Admin Access')
+    update_customer = SubmitField('Save Changes')
 
 
 class OrderForm(FlaskForm):

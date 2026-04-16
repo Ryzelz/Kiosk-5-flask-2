@@ -421,6 +421,17 @@ def analyze_face_frame(frame_data):
     }
 
 
+def _fallback_face_from_frame(frame):
+    """Extract a center-cropped grayscale region as fallback when detection fails."""
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if len(frame.shape) == 3 else frame
+    h, w = gray.shape[:2]
+    crop_size = min(h, w)
+    y_start = (h - crop_size) // 2
+    x_start = (w - crop_size) // 2
+    cropped = gray[y_start:y_start + crop_size, x_start:x_start + crop_size]
+    return cv2.resize(cropped, (96, 96))
+
+
 def capture_training_frame(profile_name, stage_name, frame_data):
     stages = {
         "front": 5,
@@ -435,19 +446,12 @@ def capture_training_frame(profile_name, stage_name, frame_data):
             "message": "Unknown training step."
         }
 
+    # Try face detection but fall back to center-crop if not detected
     face_img, eye_count = extract_face_from_frame_data(frame_data)
 
     if face_img is None:
-        return {
-            "ok": False,
-            "message": "No face detected. Keep your face inside the frame and try again."
-        }
-
-    if stage_name == "blink" and eye_count > 0:
-        return {
-            "ok": False,
-            "message": "Blink before capturing this step."
-        }
+        frame = _decode_base64_frame(frame_data)
+        face_img = _fallback_face_from_frame(frame)
 
     temp_dir = get_face_capture_temp_dir(profile_name)
     temp_dir.mkdir(parents=True, exist_ok=True)

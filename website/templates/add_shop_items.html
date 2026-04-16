@@ -12,17 +12,37 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 18px;
             padding: 28px;
-            max-width: 720px;
+            max-width: none;
+            width: 100%;
         }
 
         .wideye-add-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(12, minmax(0, 1fr));
             gap: 16px;
         }
 
         .wideye-add-grid .full {
             grid-column: 1 / -1;
+        }
+
+        .wideye-add-grid .span-6 {
+            grid-column: span 6;
+        }
+
+        .wideye-add-grid .span-4 {
+            grid-column: span 4;
+        }
+
+        .wideye-add-grid .span-3 {
+            grid-column: span 3;
+        }
+
+        .wideye-add-label {
+            display: block;
+            margin-bottom: 0.45rem;
+            color: #dbe4f3;
+            font-weight: 600;
         }
 
         .wideye-add-input,
@@ -39,6 +59,18 @@
         .wideye-add-file {
             width: 100%;
             color: #d7dcee;
+        }
+
+        .wideye-add-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 100%;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f6f7fb;
         }
 
         .wideye-add-actions {
@@ -64,9 +96,42 @@
             color: #ffffff;
         }
 
+        @media (max-width: 991.98px) {
+            .wideye-add-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .wideye-add-grid .span-6,
+            .wideye-add-grid .span-4,
+            .wideye-add-grid .span-3 {
+                grid-column: span 1;
+            }
+        }
+
         @media (max-width: 575.98px) {
             .wideye-add-grid {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+            .wideye-add-form {
+                padding: 18px;
+                border-radius: 16px;
+            }
+
+            .wideye-add-grid {
+                gap: 12px;
+            }
+
+            .wideye-add-input,
+            .wideye-add-input:focus {
+                padding: 9px 12px;
+            }
+
+            .wideye-add-actions {
+                margin-top: 16px;
+                gap: 8px;
             }
         }
     </style>
@@ -82,45 +147,47 @@
 
             <div class="wideye-add-grid">
                 <div class="full">
-                    <label class="form-label">{{ form.product_name.label.text }}</label>
+                    <label class="wideye-add-label">{{ form.product_name.label.text }}</label>
                     {{ form.product_name(class="wideye-add-input", placeholder="e.g. Iced Latte") }}
                 </div>
-                <div>
-                    <label class="form-label">{{ form.previous_price.label.text }}</label>
+                <div class="span-4">
+                    <label class="wideye-add-label">{{ form.previous_price.label.text }}</label>
                     {{ form.previous_price(class="wideye-add-input", placeholder="0.00") }}
                 </div>
-                <div>
-                    <label class="form-label">{{ form.current_price.label.text }}</label>
+                <div class="span-4">
+                    <label class="wideye-add-label">{{ form.current_price.label.text }}</label>
                     {{ form.current_price(class="wideye-add-input", placeholder="0.00") }}
                 </div>
-                <div>
-                    <label class="form-label">{{ form.in_stock.label.text }}</label>
+                <div class="span-4">
+                    <label class="wideye-add-label">{{ form.in_stock.label.text }}</label>
                     {{ form.in_stock(class="wideye-add-input", placeholder="0") }}
                 </div>
-                <div class="full">
-                    <label class="form-label">{{ form.size.label.text }}</label>
+                <div class="span-6">
+                    <label class="wideye-add-label">{{ form.size.label.text }}</label>
                     {{ form.size(class="wideye-add-input", placeholder="Small, Medium, Large") }}
                 </div>
-                <div>
-                    <label class="form-label">{{ form.sugar.label.text }}</label>
+                <div class="span-6">
+                    <label class="wideye-add-label">{{ form.product_picture.label.text }}</label>
+                    {{ form.product_picture(class="wideye-add-file", multiple="multiple") }}
+                    <small class="d-block mt-2" style="color:#a8b4cc;">Upload one image per size option, in the same order.</small>
+                </div>
+                <div class="span-4">
+                    <label class="wideye-add-label">{{ form.sugar.label.text }}</label>
                     {{ form.sugar(class="wideye-add-input", placeholder="None, Light, Regular, Extra") }}
                 </div>
-                <div>
-                    <label class="form-label">{{ form.milk.label.text }}</label>
+                <div class="span-4">
+                    <label class="wideye-add-label">{{ form.milk.label.text }}</label>
                     {{ form.milk(class="wideye-add-input", placeholder="None, Whole, Oat, Almond") }}
                 </div>
-                <div>
-                    <label class="form-label">{{ form.shot.label.text }}</label>
+                <div class="span-4">
+                    <label class="wideye-add-label">{{ form.shot.label.text }}</label>
                     {{ form.shot(class="wideye-add-input", placeholder="None, Single, Double, Triple") }}
                 </div>
-                <div class="d-flex align-items-center gap-2 pt-4">
-                    {{ form.flash_sale(class="form-check-input mt-0") }}
-                    <label class="form-check-label">{{ form.flash_sale.label.text }}</label>
-                </div>
-                <div class="full">
-                    <label class="form-label">{{ form.product_picture.label.text }}</label>
-                    {{ form.product_picture(class="wideye-add-file", multiple="multiple") }}
-                    <small class="text-secondary d-block mt-2">Upload one image per size option, in the same order.</small>
+                <div class="span-3">
+                    <div class="wideye-add-toggle">
+                        {{ form.flash_sale(class="form-check-input mt-0") }}
+                        <label class="form-check-label mb-0">{{ form.flash_sale.label.text }}</label>
+                    </div>
                 </div>
             </div>
 

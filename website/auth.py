@@ -1,9 +1,17 @@
+import shutil
+
 from flask import Blueprint, render_template, flash, redirect, request, url_for, send_from_directory, jsonify
-from .forms import LoginForm, SignUpForm, PasswordChangeForm, UsualOrderForm
+from sqlalchemy import func
+from .forms import LoginForm, SignUpForm, PasswordChangeForm, ProfileUpdateForm, DeleteAccountForm, UsualOrderForm
 from .models import Customer, Product, UsualOrderItem
 from . import db
 from flask_login import login_user, login_required, logout_user, current_user
-from .face_profiles import get_face_profile_dir, list_saved_face_images, normalize_face_profile_name
+from .face_profiles import (
+    get_face_capture_temp_dir,
+    get_face_profile_dir,
+    list_saved_face_images,
+    normalize_face_profile_name,
+)
 from .views import get_product_image, parse_options, format_option_summary, normalize_product_selection
 
 
@@ -13,6 +21,125 @@ auth = Blueprint('auth', __name__)
 def sync_primary_usual_product(customer):
     first_item = customer.usual_items[0] if customer.usual_items else None
     customer.usual_product_id = first_item.product_link if first_item else None
+
+
+def render_profile_page(customer, usual_form=None, update_form=None, delete_form=None):
+    if not customer.face_profile_name:
+        customer.face_profile_name = normalize_face_profile_name(customer.username)
+        db.session.commit()
+
+    products = Product.query.order_by(Product.product_name.asc()).all()
+    face_images = list_saved_face_images(customer.face_profile_name)
+    invalid_usual_items = [item for item in customer.usual_items if item.product is None]
+    if invalid_usual_items:
+        for usual_item in invalid_usual_items:
+            db.session.delete(usual_item)
+        db.session.flush()
+        sync_primary_usual_product(customer)
+        db.session.commit()
+
+    saved_usual_items = [item for item in customer.usual_items if item.product is not None]
+
+    if update_form is None:
+        update_form = ProfileUpdateForm(
+            email=customer.email,
+            username=customer.username,
+        )
+
+    if delete_form is None:
+        delete_form = DeleteAccountForm()
+
+    if usual_form is None:
+        usual_form = UsualOrderForm()
+
+    return render_template(
+        'profile.html',
+        customer=customer,
+        form=usual_form,
+        update_form=update_form,
+        delete_form=delete_form,
+        face_images=face_images,
+        products=products,
+        saved_usual_items=saved_usual_items,
+        get_product_image=get_product_image,
+        parse_options=parse_options,
+        format_option_summary=format_option_summary,
+    )
+
+
+def sync_face_profile_assets(customer, new_username):
+    current_profile_name = customer.face_profile_name or customer.username
+    normalized_current = normalize_face_profile_name(current_profile_name)
+    normalized_new = normalize_face_profile_name(new_username)
+
+    if normalized_current == normalized_new:
+        customer.face_profile_name = normalized_new
+        return
+
+    current_face_dir = get_face_profile_dir(normalized_current)
+    new_face_dir = get_face_profile_dir(normalized_new)
+
+    if current_face_dir.exists() and new_face_dir.exists():
+        raise ValueError('That username is already linked to saved face samples.')
+
+    current_capture_dir = get_face_capture_temp_dir(normalized_current)
+    new_capture_dir = get_face_capture_temp_dir(normalized_new)
+
+    if current_capture_dir.exists() and new_capture_dir.exists():
+        raise ValueError('That username is already linked to an active face training session.')
+
+    had_face_data = current_face_dir.exists()
+
+    if current_face_dir.exists():
+        shutil.move(str(current_face_dir), str(new_face_dir))
+
+    if current_capture_dir.exists():
+        shutil.move(str(current_capture_dir), str(new_capture_dir))
+
+    customer.face_profile_name = normalized_new
+
+    # Retrain so trainer.npz and face_labels.txt reflect the renamed folder
+    if had_face_data:
+        try:
+            from yolov10 import train_faces
+            train_faces()
+        except Exception as e:
+            print(f'Face retrain after profile rename failed (non-fatal): {e}')
+
+
+def delete_customer_account(customer):
+    profile_name = customer.face_profile_name or customer.username
+    face_dir = get_face_profile_dir(profile_name)
+    capture_dir = get_face_capture_temp_dir(profile_name)
+
+    had_face_data = face_dir.exists()
+
+    if face_dir.exists():
+        shutil.rmtree(face_dir)
+
+    if capture_dir.exists():
+        shutil.rmtree(capture_dir)
+
+    for cart_item in list(customer.cart_items):
+        db.session.delete(cart_item)
+
+    for order in list(customer.orders):
+        db.session.delete(order)
+
+    for usual_item in list(customer.usual_items):
+        db.session.delete(usual_item)
+
+    db.session.delete(customer)
+    db.session.commit()
+
+    # Retrain the face recognizer so trainer.npz and face_labels.txt
+    # no longer contain data for the deleted user
+    if had_face_data:
+        try:
+            from yolov10 import train_faces
+            train_faces()
+        except Exception as e:
+            print(f'Face retrain after account deletion failed (non-fatal): {e}')
 
 
 @auth.route('/sign-up', methods=['GET', 'POST'])
@@ -92,23 +219,7 @@ def profile(customer_id):
         return redirect(url_for('auth.profile', customer_id=current_user.id))
 
     customer = Customer.query.get_or_404(customer_id)
-
-    if not customer.face_profile_name:
-        customer.face_profile_name = normalize_face_profile_name(customer.username)
-        db.session.commit()
-
     form = UsualOrderForm()
-    products = Product.query.order_by(Product.product_name.asc()).all()
-    face_images = list_saved_face_images(customer.face_profile_name)
-    invalid_usual_items = [item for item in customer.usual_items if item.product is None]
-    if invalid_usual_items:
-        for usual_item in invalid_usual_items:
-            db.session.delete(usual_item)
-        db.session.flush()
-        sync_primary_usual_product(customer)
-        db.session.commit()
-
-    saved_usual_items = [item for item in customer.usual_items if item.product is not None]
 
     if request.method == 'POST' and request.form.get('remove_usual_item_id'):
         usual_item = UsualOrderItem.query.filter_by(
@@ -172,17 +283,96 @@ def profile(customer_id):
         flash(f'{selected_product.product_name} added to your usual order.')
         return redirect(url_for('auth.profile', customer_id=customer.id))
 
-    return render_template(
-        'profile.html',
-        customer=customer,
-        form=form,
-        face_images=face_images,
-        products=products,
-        saved_usual_items=saved_usual_items,
-        get_product_image=get_product_image,
-        parse_options=parse_options,
-        format_option_summary=format_option_summary,
-    )
+    return render_profile_page(customer, usual_form=form)
+
+
+@auth.route('/profile/<int:customer_id>/update-account', methods=['POST'])
+@login_required
+def update_account(customer_id):
+    if current_user.id != customer_id:
+        flash('You can only edit your own profile.')
+        return redirect(url_for('auth.profile', customer_id=current_user.id))
+
+    customer = Customer.query.get_or_404(customer_id)
+    form = ProfileUpdateForm()
+
+    if not form.validate_on_submit():
+        for field_errors in form.errors.values():
+            for error in field_errors:
+                flash(error)
+        return render_profile_page(customer, update_form=form)
+
+    new_email = form.email.data.strip()
+    new_username = form.username.data.strip()
+
+    existing_email = Customer.query.filter(
+        Customer.id != customer.id,
+        func.lower(Customer.email) == new_email.lower(),
+    ).first()
+    if existing_email:
+        flash('That email is already in use.')
+        return render_profile_page(customer, update_form=form)
+
+    existing_username = Customer.query.filter(
+        Customer.id != customer.id,
+        func.lower(Customer.username) == new_username.lower(),
+    ).first()
+    if existing_username:
+        flash('That username is already in use.')
+        return render_profile_page(customer, update_form=form)
+
+    try:
+        sync_face_profile_assets(customer, new_username)
+        customer.email = new_email
+        customer.username = new_username
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Account not updated — {exc}')
+        return render_profile_page(customer, update_form=form)
+
+    flash('Account updated successfully.')
+    return redirect(url_for('auth.profile', customer_id=customer.id))
+
+
+@auth.route('/profile/<int:customer_id>/delete-account', methods=['POST'])
+@login_required
+def delete_account(customer_id):
+    if current_user.id != customer_id:
+        flash('You can only delete your own account.')
+        return redirect(url_for('auth.profile', customer_id=current_user.id))
+
+    customer = Customer.query.get_or_404(customer_id)
+    form = DeleteAccountForm()
+
+    if not form.validate_on_submit():
+        for field_errors in form.errors.values():
+            for error in field_errors:
+                flash(error)
+        return render_profile_page(customer, delete_form=form)
+
+    if not customer.verify_password(form.current_password.data):
+        flash('Current Password is Incorrect')
+        return render_profile_page(customer, delete_form=form)
+
+    other_admin = Customer.query.filter(
+        Customer.id != customer.id,
+        Customer.is_admin.is_(True),
+    ).first()
+    if customer.is_admin and other_admin is None:
+        flash('You cannot delete the last admin account.')
+        return render_profile_page(customer, delete_form=form)
+
+    try:
+        delete_customer_account(customer)
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Account not deleted — {exc}')
+        return redirect(url_for('auth.profile', customer_id=customer_id))
+
+    logout_user()
+    flash('Your account has been deleted.')
+    return redirect(url_for('views.home'))
 
 
 @auth.route('/profile/<int:customer_id>/train-usual-face')
@@ -270,8 +460,12 @@ def profile_face_image(customer_id, filename):
 @auth.route('/change-password/<int:customer_id>', methods=['GET', 'POST'])
 @login_required
 def change_password(customer_id):
+    if current_user.id != customer_id:
+        flash('You can only edit your own profile.')
+        return redirect(url_for('auth.profile', customer_id=current_user.id))
+
     form = PasswordChangeForm()
-    customer = Customer.query.get(customer_id)
+    customer = Customer.query.get_or_404(customer_id)
     if form.validate_on_submit():
         current_password = form.current_password.data
         new_password = form.new_password.data

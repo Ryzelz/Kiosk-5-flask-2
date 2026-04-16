@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %} Update Customer {% endblock %}
+
+{% block body %}
+<div class="wideye-shell py-4">
+    <style>
+        .wideye-customer-edit-card {
+            max-width: 720px;
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 24px;
+        }
+
+        .wideye-customer-edit-copy {
+            color: #a8b4cc;
+        }
+
+        .wideye-customer-edit-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .wideye-customer-edit-grid .full {
+            grid-column: 1 / -1;
+        }
+
+        .wideye-customer-edit-input,
+        .wideye-customer-edit-input:focus {
+            width: 100%;
+            min-height: 46px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            color: #ffffff;
+            padding: 10px 12px;
+            box-shadow: none;
+        }
+
+        .wideye-customer-edit-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 46px;
+            padding-top: 28px;
+            color: #f6f7fb;
+        }
+
+        .wideye-customer-edit-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .wideye-customer-edit-primary {
+            border: none;
+            border-radius: 999px;
+            padding: 11px 18px;
+            font-weight: 700;
+            background: #ffbf2f;
+            color: #111827;
+        }
+
+        .wideye-customer-edit-secondary {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            padding: 11px 18px;
+            color: #ffffff;
+        }
+
+        .wideye-customer-meta {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .wideye-customer-meta-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 12px 14px;
+        }
+
+        .wideye-customer-meta-label {
+            display: block;
+            color: #94a2bc;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+        }
+
+        .wideye-customer-meta-value {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+            .wideye-customer-edit-card {
+                max-width: 100%;
+                border-radius: 16px;
+                padding: 18px;
+            }
+
+            .wideye-customer-edit-grid {
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .wideye-customer-edit-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .wideye-customer-edit-check {
+                padding-top: 0;
+            }
+        }
+    </style>
+
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Update Customer</h1>
+        <p class="wideye-customer-edit-copy mb-0">Edit the customer profile shown in the admin dashboard.</p>
+    </div>
+
+    <div class="wideye-customer-edit-card">
+        <h2 class="h5 mb-1">{{ customer.username }}</h2>
+        <p class="wideye-customer-edit-copy mb-0">{{ customer.email }}</p>
+
+        <div class="wideye-customer-meta">
+            <div class="wideye-customer-meta-item">
+                <span class="wideye-customer-meta-label">Face label</span>
+                <span class="wideye-customer-meta-value">{{ customer.face_profile_name or customer.username }}</span>
+            </div>
+            <div class="wideye-customer-meta-item">
+                <span class="wideye-customer-meta-label">Date joined</span>
+                <span class="wideye-customer-meta-value">{{ customer.date_joined.strftime('%b %d, %Y') if customer.date_joined else 'N/A' }}</span>
+            </div>
+        </div>
+
+        <form method="POST" class="mt-3">
+            {{ form.hidden_tag() }}
+
+            <div class="wideye-customer-edit-grid">
+                <div>
+                    <label class="form-label" for="{{ form.username.id }}">{{ form.username.label.text }}</label>
+                    {{ form.username(class="wideye-customer-edit-input") }}
+                </div>
+                <div>
+                    <label class="form-label" for="{{ form.email.id }}">{{ form.email.label.text }}</label>
+                    {{ form.email(class="wideye-customer-edit-input") }}
+                </div>
+                <div class="full wideye-customer-edit-check">
+                    {{ form.is_admin(class="form-check-input mt-0") }}
+                    <label class="form-check-label" for="{{ form.is_admin.id }}">{{ form.is_admin.label.text }}</label>
+                </div>
+            </div>
+
+            <div class="wideye-customer-edit-actions">
+                {{ form.update_customer(class="wideye-customer-edit-primary") }}
+                <a href="/customers" class="wideye-customer-edit-secondary">Back to Customers</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

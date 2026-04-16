@@ -111,8 +111,8 @@
             width: 38px;
             height: 38px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #7b61ff, #a77dff);
-            color: #ffffff;
+            background: linear-gradient(135deg, #ffffff, #ffffff);
+            color: #09111f;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -174,6 +174,110 @@
             font-weight: 700;
             background: #ffbf2f;
             color: #111827;
+        }
+
+        .dropdown-menu {
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            padding: 8px;
+        }
+
+        .dropdown-item {
+            color: #f6f7fb;
+            border-radius: 10px;
+        }
+
+        .dropdown-item:hover,
+        .dropdown-item:focus {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+
+        @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+            body {
+                font-size: 0.94rem;
+            }
+
+            .py-4 {
+                padding-top: 1rem !important;
+                padding-bottom: 1rem !important;
+            }
+
+            .pt-3 {
+                padding-top: 0.85rem !important;
+            }
+
+            .pb-4 {
+                padding-bottom: 1rem !important;
+            }
+
+            .wideye-shell {
+                width: min(calc(100% - 1rem), 1280px);
+            }
+
+            .wideye-navbar {
+                padding: 10px 0;
+            }
+
+            .wideye-brand-mark {
+                width: 30px;
+                height: 30px;
+                border-radius: 8px;
+            }
+
+            .wideye-brand-text {
+                font-size: 0.94rem;
+            }
+
+            .wideye-search-form {
+                max-width: 320px;
+            }
+
+            .wideye-search-wrap {
+                min-height: 38px;
+                padding: 0 8px;
+            }
+
+            .wideye-search-input,
+            .wideye-search-input:focus {
+                font-size: 0.9rem;
+            }
+
+            .wideye-icon-button,
+            .wideye-avatar {
+                width: 34px;
+                height: 34px;
+            }
+
+            .wideye-action-strip {
+                border-radius: 12px;
+                padding: 12px 14px;
+            }
+
+            .wideye-action-title {
+                font-size: 0.95rem;
+            }
+
+            .wideye-action-copy {
+                font-size: 0.88rem;
+            }
+
+            .wideye-action-button {
+                padding: 9px 16px;
+                font-size: 0.9rem;
+            }
+
+            .wideye-alert {
+                padding: 10px 12px;
+                font-size: 0.9rem;
+                margin-bottom: 10px;
+            }
+
+            .wideye-footer {
+                padding: 18px 0 24px;
+                font-size: 0.86rem;
+            }
         }
 
         @media (max-width: 991.98px) {

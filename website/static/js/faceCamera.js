@@ -314,31 +314,48 @@
         }
 
         const step = trainingSteps[currentStepIndex];
-        const frame = getFrameData();
-        const result = await postJson(captureUrl, {
-            frame: frame,
-            stage: step.key
-        });
+        const totalNeeded = step.required;
 
-        setStatus(result.message, false);
+        for (let i = 0; i < totalNeeded; i++) {
+            setStatus(`Capturing ${i + 1} of ${totalNeeded} for ${step.label}…`, false);
 
-        if (result.training_complete) {
-            currentStepIndex = trainingSteps.length;
-            renderSteps();
-            stopCamera();
-            window.setTimeout(() => {
-                window.location.href = successRedirect;
-            }, 1200);
-            return;
+            // Small delay between captures so different frames are grabbed
+            if (i > 0) {
+                await new Promise(resolve => setTimeout(resolve, 600));
+            }
+
+            const frame = getFrameData();
+            const result = await postJson(captureUrl, {
+                frame: frame,
+                stage: step.key
+            });
+
+            if (!result.ok) {
+                setStatus(result.message, true);
+                return;
+            }
+
+            setStatus(result.message, false);
+
+            if (result.training_complete) {
+                currentStepIndex = trainingSteps.length;
+                renderSteps();
+                stopCamera();
+                window.setTimeout(() => {
+                    window.location.href = successRedirect;
+                }, 1200);
+                return;
+            }
+
+            if (result.stage_complete) {
+                currentStepIndex += 1;
+                renderSteps();
+                break;
+            }
         }
 
-        if (result.stage_complete) {
-            currentStepIndex += 1;
-            renderSteps();
-
-            if (currentStepIndex < trainingSteps.length) {
-                setStatus(`${result.message} Next step: ${trainingSteps[currentStepIndex].label}.`, false);
-            }
+        if (currentStepIndex < trainingSteps.length) {
+            setStatus(`Step done! Click Capture again for: ${trainingSteps[currentStepIndex].label}.`, false);
         }
     };
 

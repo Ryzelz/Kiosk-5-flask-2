@@ -2,7 +2,8 @@ from pathlib import Path
 
 from flask import Blueprint, render_template, flash, send_from_directory, redirect, current_app, request
 from flask_login import login_required, current_user
-from .forms import ShopItemsForm, UpdateShopItemsForm, OrderForm
+from sqlalchemy import func
+from .forms import ShopItemsForm, UpdateShopItemsForm, OrderForm, AdminCustomerUpdateForm
 from werkzeug.utils import secure_filename
 from .models import Product, Order, Customer
 from .views import parse_options, get_product_image
@@ -36,6 +37,10 @@ def resolve_updated_value(value, fallback):
 
 def current_user_is_admin():
     return current_user.is_authenticated and bool(getattr(current_user, 'is_admin', False))
+
+
+def render_customer_update_page(customer, form):
+    return render_template('update_customer.html', customer=customer, form=form)
 
 
 @admin.route('/media/<path:filename>')
@@ -220,8 +225,19 @@ def delete_item(item_id):
 @login_required
 def order_view():
     if current_user_is_admin():
-        orders = Order.query.all()
-        return render_template('view_orders.html', orders=orders, get_product_image=get_product_image)
+        sort = request.args.get('sort', 'desc')
+        if sort == 'asc':
+            orders = Order.query.order_by(Order.id.asc()).all()
+        else:
+            orders = Order.query.order_by(Order.id.desc()).all()
+        order_form = OrderForm()
+        return render_template(
+            'view_orders.html',
+            orders=orders,
+            get_product_image=get_product_image,
+            order_form=order_form,
+            sort=sort,
+        )
     return render_template('404.html')
 
 
@@ -282,8 +298,114 @@ def delete_order(order_id):
 @login_required
 def display_customers():
     if current_user_is_admin():
-        customers = Customer.query.all()
+        customers = Customer.query.order_by(Customer.date_joined.desc(), Customer.id.desc()).all()
         return render_template('customers.html', customers=customers)
+    return render_template('404.html')
+
+
+@admin.route('/update-customer/<int:customer_id>', methods=['GET', 'POST'])
+@login_required
+def update_customer(customer_id):
+    if current_user_is_admin():
+        customer = Customer.query.get(customer_id)
+        if customer is None:
+            flash('Customer not found.')
+            return redirect('/customers')
+
+        form = AdminCustomerUpdateForm()
+
+        if request.method == 'GET':
+            form.email.data = customer.email
+            form.username.data = customer.username
+            form.is_admin.data = customer.is_admin
+            return render_customer_update_page(customer, form)
+
+        if not form.validate_on_submit():
+            for field_errors in form.errors.values():
+                for error in field_errors:
+                    flash(error)
+            return render_customer_update_page(customer, form)
+
+        new_email = form.email.data.strip()
+        new_username = form.username.data.strip()
+        make_admin = bool(form.is_admin.data)
+
+        existing_email = Customer.query.filter(
+            Customer.id != customer.id,
+            func.lower(Customer.email) == new_email.lower(),
+        ).first()
+        if existing_email:
+            flash('That email is already in use.')
+            return render_customer_update_page(customer, form)
+
+        existing_username = Customer.query.filter(
+            Customer.id != customer.id,
+            func.lower(Customer.username) == new_username.lower(),
+        ).first()
+        if existing_username:
+            flash('That username is already in use.')
+            return render_customer_update_page(customer, form)
+
+        if customer.is_admin and not make_admin:
+            other_admin = Customer.query.filter(
+                Customer.id != customer.id,
+                Customer.is_admin.is_(True),
+            ).first()
+            if other_admin is None:
+                flash('You cannot remove admin access from the last admin account.')
+                return render_customer_update_page(customer, form)
+
+        try:
+            from .auth import sync_face_profile_assets
+            sync_face_profile_assets(customer, new_username)
+            customer.email = new_email
+            customer.username = new_username
+            customer.is_admin = make_admin
+            db.session.commit()
+            flash('Customer updated successfully.')
+            return redirect('/customers')
+        except Exception as e:
+            db.session.rollback()
+            print('Customer not updated', e)
+            flash(f'Customer not updated — {e}')
+            return render_customer_update_page(customer, form)
+
+    return render_template('404.html')
+
+
+@admin.route('/delete-customer/<int:customer_id>', methods=['GET', 'POST'])
+@login_required
+def delete_customer(customer_id):
+    if current_user_is_admin():
+        customer = Customer.query.get(customer_id)
+        if customer is None:
+            flash('Customer not found.')
+            return redirect('/customers')
+
+        if customer.id == current_user.id:
+            flash('Use your profile page to manage your own account.')
+            return redirect('/customers')
+
+        if customer.is_admin:
+            other_admin = Customer.query.filter(
+                Customer.id != customer.id,
+                Customer.is_admin.is_(True),
+            ).first()
+            if other_admin is None:
+                flash('You cannot delete the last admin account.')
+                return redirect('/customers')
+
+        try:
+            from .auth import delete_customer_account
+            delete_customer_account(customer)
+            flash('Customer deleted successfully.')
+        except Exception as e:
+            db.session.rollback()
+            print('Customer not deleted', e)
+            flash('Customer could not be deleted!')
+
+        return redirect('/customers')
+
     return render_template('404.html')
 
 

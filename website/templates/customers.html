@@ -56,6 +56,64 @@
             border-radius: 8px;
             display: inline-block;
         }
+
+        .wideye-customer-role {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.05);
+            color: #d7dcee;
+        }
+
+        .wideye-customer-role.admin {
+            background: rgba(255, 191, 47, 0.15);
+            color: #ffbf2f;
+        }
+
+        .wideye-customer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .wideye-customer-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+
+        .wideye-customer-action.edit {
+            background: #24324b;
+            color: #ffffff;
+        }
+
+        .wideye-customer-action.delete {
+            background: rgba(255, 99, 132, 0.15);
+            color: #ffb3c2;
+        }
+
+        @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+            .wideye-table-wrap {
+                overflow-x: auto;
+                border-radius: 16px;
+            }
+
+            .wideye-table th,
+            .wideye-table td {
+                padding: 10px 12px;
+                font-size: 0.84rem;
+                white-space: nowrap;
+            }
+        }
     </style>
 
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -78,7 +136,9 @@
                     <th>ID</th>
                     <th>Username</th>
                     <th>Email</th>
+                    <th>Role</th>
                     <th>Date Joined</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -87,7 +147,18 @@
                     <td><span class="wideye-id-badge">#{{ customer.id }}</span></td>
                     <td style="color:#fff;font-weight:600;">{{ customer.username }}</td>
                     <td>{{ customer.email }}</td>
+                    <td>
+                        <span class="wideye-customer-role {% if customer.is_admin %}admin{% endif %}">
+                            {% if customer.is_admin %}Admin{% else %}Customer{% endif %}
+                        </span>
+                    </td>
                     <td>{{ customer.date_joined.strftime('%b %d, %Y') if customer.date_joined else 'N/A' }}</td>
+                    <td>
+                        <div class="wideye-customer-actions">
+                            <a href="/update-customer/{{ customer.id }}" class="wideye-customer-action edit">Update</a>
+                            <a href="/delete-customer/{{ customer.id }}" class="wideye-customer-action delete" onclick="return confirm('Delete {{ customer.username }}? This will remove their account data.');">Delete</a>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

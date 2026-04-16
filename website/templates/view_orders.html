@@ -90,6 +90,86 @@
             font-size: 0.82rem;
             white-space: nowrap;
         }
+
+        .wideye-status-stack {
+            display: grid;
+            gap: 10px;
+            min-width: 220px;
+        }
+
+        .wideye-status-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .wideye-status-select {
+            flex: 1 1 140px;
+            min-width: 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: #0f172a;
+            color: #ffffff;
+            padding: 8px 12px;
+            box-shadow: none;
+        }
+
+        .wideye-status-save {
+            border: none;
+            border-radius: 999px;
+            background: #ffbf2f;
+            color: #111827;
+            font-weight: 700;
+            padding: 8px 14px;
+            white-space: nowrap;
+        }
+
+        .wideye-sort-select {
+            background: #0f172a;
+            color: #d7dcee;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a2bc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .wideye-sort-select:focus {
+            outline: none;
+            border-color: rgba(56, 189, 248, 0.5);
+        }
+
+        @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+            .wideye-order-wrap {
+                border-radius: 16px;
+            }
+
+            .wideye-order-table {
+                min-width: 760px;
+            }
+
+            .wideye-order-table th,
+            .wideye-order-table td {
+                padding: 10px 12px;
+                font-size: 0.82rem;
+            }
+
+            .wideye-order-img {
+                width: 38px;
+                height: 38px;
+            }
+
+            .wideye-status-stack {
+                min-width: 190px;
+            }
+        }
     </style>
 
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -98,6 +178,13 @@
             <p style="color:#a8b4cc;" class="mb-0">Track every order and update its status.</p>
         </div>
         <a href="/admin-page" style="border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:10px 18px;color:#fff;">Back to Dashboard</a>
+        <form method="GET" action="/view-orders" class="d-flex align-items-center gap-2">
+            <label for="sortSelect" style="color:#94a2bc;font-size:0.85rem;white-space:nowrap;margin:0;">Sort by</label>
+            <select id="sortSelect" name="sort" class="wideye-sort-select" onchange="this.form.submit()">
+                <option value="desc" {% if sort == 'desc' %}selected{% endif %}>Newest first</option>
+                <option value="asc"  {% if sort == 'asc'  %}selected{% endif %}>Oldest first</option>
+            </select>
+        </form>
     </div>
 
     {% if orders | length < 1 %}
@@ -141,13 +228,23 @@
                     <td>{{ order.quantity }}</td>
                     <td>
                         {% set s = order.status | lower %}
-                        <span class="wideye-status {% if s == 'pending' %}wideye-status-pending{% elif s == 'accepted' %}wideye-status-accepted{% elif s == 'delivered' %}wideye-status-delivered{% elif s == 'canceled' %}wideye-status-canceled{% else %}wideye-status-pending{% endif %}">
-                            {{ order.status }}
-                        </span>
+                        <div class="wideye-status-stack">
+                            <span class="wideye-status {% if s == 'pending' %}wideye-status-pending{% elif s == 'accepted' %}wideye-status-accepted{% elif s == 'delivered' %}wideye-status-delivered{% elif s == 'canceled' %}wideye-status-canceled{% else %}wideye-status-pending{% endif %}">
+                                {{ order.status }}
+                            </span>
+                            <form method="POST" action="/update-order/{{ order.id }}" class="wideye-status-form">
+                                {{ order_form.csrf_token }}
+                                <select name="order_status" class="wideye-status-select" aria-label="Update status for order {{ order.id }}">
+                                    {% for value, label in order_form.order_status.choices %}
+                                    <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="wideye-status-save">Save</button>
+                            </form>
+                        </div>
                     </td>
                     <td>
                         <div class="d-flex gap-2">
-                            <a href="/update-order/{{ order.id }}" class="wideye-order-action">Update</a>
                             <a href="/delete-order/{{ order.id }}" class="wideye-order-action" style="background:rgba(255,99,132,0.15);color:#ff6384;" onclick="return confirm('Delete order #{{ order.id }}?')">Delete</a>
                         </div>
                     </td>

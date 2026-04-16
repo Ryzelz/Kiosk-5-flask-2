@@ -248,7 +248,8 @@ def create_app():
         sync_cart_schema()
         sync_order_schema()
         sync_usual_order_schema()
-        seed_admin_account()
+        if not app.testing:
+            seed_admin_account()
 
     return app
 

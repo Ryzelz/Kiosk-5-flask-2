@@ -318,6 +318,110 @@ class TestAuth:
             user = Customer.query.get(uid)
             assert user.verify_password('newpass123')
 
+    def test_change_password_requires_own_account(self, client, app, admin_user, normal_user):
+        admin_id, admin_email, admin_pw = admin_user
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        client.post(f'/change-password/{admin_id}', data={
+            'current_password': admin_pw,
+            'new_password': 'hijack123',
+            'confirm_new_password': 'hijack123',
+        }, follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            admin = Customer.query.get(admin_id)
+            assert admin.verify_password(admin_pw)
+
+    def test_update_account_changes_email_and_username(self, client, app, normal_user):
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        resp = client.post(f'/profile/{uid}/update-account', data={
+            'email': 'updated@test.com',
+            'username': 'updateduser',
+        }, follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            user = Customer.query.get(uid)
+            assert user.email == 'updated@test.com'
+            assert user.username == 'updateduser'
+            assert user.face_profile_name == 'updateduser'
+        assert b'Account updated successfully' in resp.data
+
+    def test_update_account_rejects_duplicate_email(self, client, app, admin_user, normal_user):
+        admin_id, admin_email, admin_pw = admin_user
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        resp = client.post(f'/profile/{uid}/update-account', data={
+            'email': admin_email,
+            'username': 'stillunique',
+        }, follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            user = Customer.query.get(uid)
+            assert user.email == email
+            assert user.username == 'testuser'
+        assert b'already in use' in resp.data
+
+    def test_delete_account_requires_correct_password(self, client, app, normal_user):
+        uid, email, pw = normal_user
+        login(client, email, pw)
+        resp = client.post(f'/profile/{uid}/delete-account', data={
+            'current_password': 'wrongpass',
+        }, follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            assert Customer.query.get(uid) is not None
+        assert b'Current Password is Incorrect' in resp.data
+
+    def test_delete_account_removes_customer_and_related_data(self, client, app, db, normal_user, sample_product):
+        uid, email, pw = normal_user
+        from website.models import Cart, Customer, Order, UsualOrderItem
+        with app.app_context():
+            db.session.add(Cart(
+                quantity=2,
+                size='Small',
+                sugar='None',
+                milk='Whole',
+                shot='Single',
+                customer_link=uid,
+                product_link=sample_product,
+            ))
+            db.session.add(Order(
+                quantity=1,
+                size='Small',
+                sugar='None',
+                milk='Whole',
+                shot='Single',
+                price=150,
+                status='Pending',
+                payment_method='cashless',
+                payment_id='pi-delete-me',
+                customer_link=uid,
+                product_link=sample_product,
+            ))
+            db.session.add(UsualOrderItem(
+                quantity=1,
+                size='Small',
+                sugar='None',
+                milk='Whole',
+                shot='Single',
+                customer_link=uid,
+                product_link=sample_product,
+            ))
+            db.session.commit()
+
+        login(client, email, pw)
+        resp = client.post(f'/profile/{uid}/delete-account', data={
+            'current_password': pw,
+        }, follow_redirects=True)
+
+        with app.app_context():
+            assert Customer.query.get(uid) is None
+            assert Cart.query.filter_by(customer_link=uid).count() == 0
+            assert Order.query.filter_by(customer_link=uid).count() == 0
+            assert UsualOrderItem.query.filter_by(customer_link=uid).count() == 0
+        assert b'Your account has been deleted' in resp.data
+
 
 # ===========================================================================
 # 3. PRODUCT / SHOP ITEM TESTS
@@ -503,7 +607,7 @@ class TestOrders:
             'size': 'Large', 'sugar': 'Regular', 'milk': 'Whole', 'shot': 'Single',
         }, follow_redirects=True)
 
-        resp = client.get('/place-order', follow_redirects=True)
+        resp = client.post('/place-order', data={'payment_method': 'cashless'}, follow_redirects=True)
         from website.models import Order, Cart
         with app.app_context():
             order = Order.query.filter_by(customer_link=uid).first()
@@ -525,8 +629,25 @@ class TestOrders:
     def test_view_orders_admin(self, client, app, db, admin_user, sample_product):
         uid, email, pw = admin_user
         login(client, email, pw)
+        from website.models import Order
+        with app.app_context():
+            o = Order()
+            o.quantity = 1
+            o.size = 'Small'
+            o.sugar = ''
+            o.milk = ''
+            o.shot = ''
+            o.price = 150
+            o.status = 'Pending'
+            o.payment_id = 'pi_view_test'
+            o.customer_link = uid
+            o.product_link = sample_product
+            db.session.add(o)
+            db.session.commit()
         resp = client.get('/view-orders')
         assert resp.status_code == 200
+        assert b'Save' in resp.data
+        assert b'order_status' in resp.data
 
     def test_view_orders_blocked_for_non_admin(self, client, normal_user):
         uid, email, pw = normal_user
@@ -598,7 +719,7 @@ class TestPayment:
         uid, email, pw = normal_user
         login(client, email, pw)
         client.post(f'/add-to-cart/{sample_product}', data={'size': 'Small'}, follow_redirects=True)
-        resp = client.get('/place-order')
+        resp = client.post('/place-order', data={'payment_method': 'cashless'})
         assert resp.status_code == 200
         assert b'QRIMAGE' in resp.data or b'pi_test_qr' in resp.data
 
@@ -637,7 +758,7 @@ class TestPayment:
         mock_retrieve.return_value = {'attributes': {'status': 'succeeded'}}
         resp = client.get('/check-payment/pi_check_123')
         data = resp.get_json()
-        assert data['status'] == 'paid'
+        assert data['status'] == 'succeeded'
         with app.app_context():
             order = Order.query.filter_by(payment_id='pi_check_123').first()
             assert order.status == 'Accepted'
@@ -647,7 +768,7 @@ class TestPayment:
         mock_retrieve.return_value = {'attributes': {'status': 'awaiting_next_action'}}
         resp = client.get('/check-payment/pi_pending_456')
         data = resp.get_json()
-        assert data['status'] == 'pending'
+        assert data['status'] == 'awaiting_next_action'
 
 
 # ===========================================================================
@@ -679,6 +800,59 @@ class TestAdmin:
         login(client, email, pw)
         resp = client.get('/customers')
         assert resp.status_code == 200
+        assert b'Update' in resp.data
+        assert b'Delete' in resp.data
+
+    def test_update_customer_from_admin_page(self, client, app, admin_user, normal_user):
+        admin_id, admin_email, admin_pw = admin_user
+        uid, email, pw = normal_user
+        login(client, admin_email, admin_pw)
+        resp = client.post(f'/update-customer/{uid}', data={
+            'email': 'edited@test.com',
+            'username': 'editeduser',
+            'is_admin': 'y',
+        }, follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            user = Customer.query.get(uid)
+            assert user.email == 'edited@test.com'
+            assert user.username == 'editeduser'
+            assert user.is_admin is True
+            assert user.face_profile_name == 'editeduser'
+        assert b'Customer updated successfully' in resp.data
+
+    def test_delete_customer_from_admin_page(self, client, app, admin_user, normal_user):
+        admin_id, admin_email, admin_pw = admin_user
+        uid, email, pw = normal_user
+        login(client, admin_email, admin_pw)
+        resp = client.get(f'/delete-customer/{uid}', follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            assert Customer.query.get(uid) is None
+        assert b'Customer deleted successfully' in resp.data
+
+    def test_admin_cannot_delete_self_from_customers_page(self, client, app, admin_user, normal_user):
+        admin_id, admin_email, admin_pw = admin_user
+        uid, email, pw = normal_user
+        login(client, admin_email, admin_pw)
+        resp = client.get(f'/delete-customer/{admin_id}', follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            assert Customer.query.get(admin_id) is not None
+        assert b'Use your profile page' in resp.data
+
+    def test_admin_cannot_remove_last_admin_role(self, client, app, admin_user):
+        admin_id, admin_email, admin_pw = admin_user
+        login(client, admin_email, admin_pw)
+        resp = client.post(f'/update-customer/{admin_id}', data={
+            'email': admin_email,
+            'username': 'admin',
+        }, follow_redirects=True)
+        from website.models import Customer
+        with app.app_context():
+            user = Customer.query.get(admin_id)
+            assert user.is_admin is True
+        assert b'last admin account' in resp.data
 
     def test_update_order_status(self, client, app, db, admin_user):
         uid, email, pw = admin_user
@@ -919,14 +1093,14 @@ class TestYolov10Helpers:
     def test_match_threshold_value(self):
         from yolov10 import MATCH_THRESHOLD
         assert 0 < MATCH_THRESHOLD < 1.0
-        assert MATCH_THRESHOLD == 0.90
+        assert MATCH_THRESHOLD == 0.82
 
 
 class TestFaceRecognitionFlow:
     """Integration-like tests for the face recognition API endpoints (mocked AI)."""
 
     def test_face_preview_endpoint_no_face(self, client, app):
-        with patch('website.views.analyze_face_frame') as mock_analyze:
+        with patch('yolov10.analyze_face_frame') as mock_analyze:
             mock_analyze.return_value = {
                 'ok': True, 'detected': False, 'message': 'No face detected.'
             }
@@ -946,7 +1120,7 @@ class TestFaceRecognitionFlow:
         assert b'Starting camera...' in resp.data
 
     def test_usual_order_confirm_no_trained_faces(self, client, app):
-        with patch('website.views.recognize_face_from_frame_data') as mock_rec:
+        with patch('yolov10.recognize_face_from_frame_data') as mock_rec:
             mock_rec.return_value = {
                 'ok': False, 'message': 'No trained face profiles are available yet.'
             }
@@ -971,7 +1145,7 @@ class TestFaceRecognitionFlow:
             'code': {'image_url': 'data:image/png;base64,USUALQR'}
         }}}
 
-        with patch('website.views.recognize_face_from_frame_data') as mock_rec:
+        with patch('yolov10.recognize_face_from_frame_data') as mock_rec:
             mock_rec.return_value = {
                 'ok': True,
                 'recognized_name': username,
@@ -993,7 +1167,7 @@ class TestFaceRecognitionFlow:
 
     def test_usual_order_no_usual_set(self, client, app, db, normal_user):
         uid, email, pw = normal_user
-        with patch('website.views.recognize_face_from_frame_data') as mock_rec:
+        with patch('yolov10.recognize_face_from_frame_data') as mock_rec:
             mock_rec.return_value = {
                 'ok': True,
                 'recognized_name': 'testuser',
@@ -1115,7 +1289,7 @@ class TestPaymentMethodSelection:
             db.session.commit()
             username = customer.username
 
-        with patch('website.views.recognize_face_from_frame_data') as mock_rec:
+        with patch('yolov10.recognize_face_from_frame_data') as mock_rec:
             mock_rec.return_value = {
                 'ok': True,
                 'recognized_name': username,
