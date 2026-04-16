@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %} Face Detection Model {% endblock %}
+
+{% block body %}
+<div class="wideye-shell py-4">
+    <style>
+        .fm-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .fm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 18px;
+        }
+
+        .fm-card {
+            background: #121a29;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 24px 22px;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.15s;
+            position: relative;
+        }
+
+        .fm-card:hover {
+            border-color: rgba(255, 191, 47, 0.5);
+            transform: translateY(-3px);
+        }
+
+        .fm-card.fm-active {
+            border-color: #ffbf2f;
+            background: #161f33;
+        }
+
+        .fm-card input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .fm-radio-ring {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: border-color 0.2s;
+        }
+
+        .fm-card.fm-active .fm-radio-ring {
+            border-color: #ffbf2f;
+        }
+
+        .fm-radio-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffbf2f;
+            display: none;
+        }
+
+        .fm-card.fm-active .fm-radio-dot {
+            display: block;
+        }
+
+        .fm-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .fm-badge-stable  { background: rgba(56,189,248,0.15); color: #38bdf8; }
+        .fm-badge-default { background: rgba(255,191,47,0.15);  color: #ffbf2f; }
+        .fm-badge-latest  { background: rgba(52,211,153,0.15);  color: #34d399; }
+
+        .fm-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0 0 4px;
+        }
+
+        .fm-desc {
+            font-size: 0.84rem;
+            color: #94a2bc;
+            margin: 0 0 14px;
+        }
+
+        .fm-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+        }
+
+        .fm-size {
+            color: #64748b;
+        }
+
+        .fm-dl-badge {
+            font-size: 0.74rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+
+        .fm-dl-yes { background: rgba(52,211,153,0.12); color: #34d399; }
+        .fm-dl-no  { background: rgba(148,162,188,0.12); color: #94a2bc; }
+
+        .fm-active-label {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #ffbf2f;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .fm-note {
+            background: #121a29;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-left: 3px solid #38bdf8;
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 0.84rem;
+            color: #94a2bc;
+            margin-top: 24px;
+        }
+
+        .fm-note strong { color: #fff; }
+    </style>
+
+    <div class="fm-header">
+        <div>
+            <h1 class="h3 mb-1">Face Detection Model</h1>
+            <p style="color:#a8b4cc;" class="mb-0">Switch the YOLO model used for person detection.</p>
+        </div>
+        <a href="/admin-page" class="wideye-admin-secondary">
+            <i class="bi bi-speedometer2 me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for msg in messages %}
+                <div class="alert alert-info border-0 mb-4" style="background:#1a2540;color:#e2e8f0;border-radius:12px;">
+                    {{ msg }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/face-model" id="fm-form">
+        <input type="hidden" name="model" id="fm-selected" value="">
+        <div class="fm-grid">
+            {% for name, info in model_status.items() %}
+            <label class="fm-card {% if info.active %}fm-active{% endif %}"
+                   data-model="{{ name }}"
+                   onclick="selectModel('{{ name }}')">
+
+                {% if info.active %}
+                    <span class="fm-active-label">✓ Active</span>
+                {% endif %}
+
+                <div class="d-flex align-items-center gap-3 mb-14" style="margin-bottom:14px;">
+                    <div class="fm-radio-ring">
+                        <div class="fm-radio-dot"></div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <p class="fm-title">{{ info.label }}</p>
+                    </div>
+                    {% set badge_class = {
+                        'Stable': 'fm-badge-stable',
+                        'Default': 'fm-badge-default',
+                        'Latest': 'fm-badge-latest'
+                    }.get(info.badge, 'fm-badge-default') %}
+                    <span class="fm-badge {{ badge_class }}">{{ info.badge }}</span>
+                </div>
+
+                <p class="fm-desc">{{ info.description }}</p>
+
+                <div class="fm-meta">
+                    {% if info.downloaded %}
+                        <span class="fm-dl-badge fm-dl-yes"><i class="bi bi-check-circle-fill me-1"></i>Downloaded</span>
+                        {% if info.size_mb %}
+                            <span class="fm-size">{{ info.size_mb }} MB</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="fm-dl-badge fm-dl-no"><i class="bi bi-cloud-download me-1"></i>Will auto-download</span>
+                    {% endif %}
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="mt-4 d-flex gap-3 align-items-center">
+            <button type="submit"
+                    id="fm-apply-btn"
+                    class="wideye-admin-primary"
+                    disabled
+                    style="opacity:0.5;pointer-events:none;">
+                <i class="bi bi-cpu-fill me-2"></i>Apply Model
+            </button>
+            <span id="fm-hint" style="color:#64748b;font-size:0.84rem;">Select a model above to apply</span>
+        </div>
+    </form>
+
+    <div class="fm-note">
+        <strong>Note:</strong> Models are downloaded automatically by Ultralytics on first use.
+        If a model is not yet downloaded, switching to it may take a moment on the next face scan.
+        The active model is used for all facial detection in the kiosk.
+    </div>
+</div>
+
+<script>
+    const activeModel = "{% for name, info in model_status.items() %}{% if info.active %}{{ name }}{% endif %}{% endfor %}";
+
+    function selectModel(name) {
+        document.querySelectorAll('.fm-card').forEach(card => {
+            card.classList.remove('fm-active');
+            card.querySelector('.fm-active-label') && (card.querySelector('.fm-active-label').style.display = 'none');
+        });
+
+        const chosen = document.querySelector(`.fm-card[data-model="${name}"]`);
+        if (chosen) chosen.classList.add('fm-active');
+
+        document.getElementById('fm-selected').value = name;
+
+        const btn = document.getElementById('fm-apply-btn');
+        const hint = document.getElementById('fm-hint');
+
+        if (name === activeModel) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.pointerEvents = 'none';
+            hint.textContent = 'This model is already active';
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+            hint.textContent = `Click Apply to switch to this model`;
+        }
+    }
+</script>
+{% endblock %}

@@ -98,10 +98,7 @@
         }
 
         .wideye-status-form {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
+            display: block;
         }
 
         .wideye-status-select {
@@ -113,16 +110,6 @@
             color: #ffffff;
             padding: 8px 12px;
             box-shadow: none;
-        }
-
-        .wideye-status-save {
-            border: none;
-            border-radius: 999px;
-            background: #ffbf2f;
-            color: #111827;
-            font-weight: 700;
-            padding: 8px 14px;
-            white-space: nowrap;
         }
 
         .wideye-sort-select {
@@ -234,12 +221,11 @@
                             </span>
                             <form method="POST" action="/update-order/{{ order.id }}" class="wideye-status-form">
                                 {{ order_form.csrf_token }}
-                                <select name="order_status" class="wideye-status-select" aria-label="Update status for order {{ order.id }}">
+                                <select name="order_status" class="wideye-status-select" aria-label="Update status for order {{ order.id }}" onchange="this.form.submit()">
                                     {% for value, label in order_form.order_status.choices %}
                                     <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
-                                <button type="submit" class="wideye-status-save">Save</button>
                             </form>
                         </div>
                     </td>

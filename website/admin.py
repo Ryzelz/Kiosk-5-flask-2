@@ -417,6 +417,30 @@ def admin_page():
     return render_template('404.html')
 
 
+@admin.route('/face-model', methods=['GET', 'POST'])
+@login_required
+def face_model_settings():
+    if not current_user_is_admin():
+        return render_template('404.html')
+
+    import yolov10 as face_module
+
+    if request.method == 'POST':
+        selected = request.form.get('model')
+        if selected and selected in face_module.AVAILABLE_MODELS:
+            try:
+                face_module.set_active_model_name(selected)
+                flash(f'Face detection model switched to {face_module.AVAILABLE_MODELS[selected]["label"]}.')
+            except Exception as e:
+                flash(f'Could not switch model: {e}')
+        else:
+            flash('Invalid model selection.')
+        return redirect('/face-model')
+
+    model_status = face_module.get_model_status()
+    return render_template('face_model.html', model_status=model_status)
+
+
 @admin.route('/analytics')
 @login_required
 def analytics_page():

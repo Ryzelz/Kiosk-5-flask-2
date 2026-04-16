@@ -1,4 +1,5 @@
 import time
+import json
 import shutil
 import base64
 
@@ -14,19 +15,93 @@ from website.face_profiles import (
 
 
 BASE_DIR = PROJECT_DIR
-MODEL_PATH = BASE_DIR / "yolov10n.pt"
 FACES_DIR = BASE_DIR / "faces"
 TRAINER_FILE = BASE_DIR / "trainer.npz"
 LABEL_FILE = BASE_DIR / "face_labels.txt"
+MODEL_CONFIG_FILE = BASE_DIR / "face_model.json"
 MATCH_THRESHOLD = 0.82
+
+DEFAULT_MODEL = "yolov10n"
+
+AVAILABLE_MODELS = {
+    "yolov8n": {
+        "file": "yolov8n.pt",
+        "label": "YOLOv8 Nano",
+        "description": "Stable, widely supported, fast",
+        "badge": "Stable",
+    },
+    "yolov10n": {
+        "file": "yolov10n.pt",
+        "label": "YOLOv10 Nano",
+        "description": "NMS-free detection, improved efficiency",
+        "badge": "Default",
+    },
+    "yolo11n": {
+        "file": "yolo11n.pt",
+        "label": "YOLO11 Nano",
+        "description": "Latest generation, best accuracy",
+        "badge": "Latest",
+    },
+}
 
 FACES_DIR.mkdir(exist_ok=True)
 
+_GRID = 4
+_HIST_BINS = 64
+FEATURE_DIM = _GRID * _GRID * _HIST_BINS  # 1024
+
 _model = None
+_loaded_model_name = None
+_active_model_name = None
 _face_detector = None
 _eye_detector = None
 _recognizer = None
 _label_map = {}
+_clahe = None
+
+
+# ── model config ──────────────────────────────────────────────────────────────
+
+def get_active_model_name():
+    global _active_model_name
+    if _active_model_name is None:
+        if MODEL_CONFIG_FILE.exists():
+            try:
+                cfg = json.loads(MODEL_CONFIG_FILE.read_text(encoding="utf-8"))
+                name = cfg.get("model", DEFAULT_MODEL)
+                _active_model_name = name if name in AVAILABLE_MODELS else DEFAULT_MODEL
+            except Exception:
+                _active_model_name = DEFAULT_MODEL
+        else:
+            _active_model_name = DEFAULT_MODEL
+    return _active_model_name
+
+
+def set_active_model_name(name):
+    global _model, _loaded_model_name, _active_model_name
+    if name not in AVAILABLE_MODELS:
+        raise ValueError(f"Unknown model '{name}'. Available: {list(AVAILABLE_MODELS)}")
+    MODEL_CONFIG_FILE.write_text(json.dumps({"model": name}), encoding="utf-8")
+    _active_model_name = name
+    _model = None
+    _loaded_model_name = None
+
+
+def get_model_status():
+    """Return info dict for all available models (for admin UI)."""
+    active = get_active_model_name()
+    status = {}
+    for name, info in AVAILABLE_MODELS.items():
+        path = BASE_DIR / info["file"]
+        size_mb = round(path.stat().st_size / (1024 * 1024), 1) if path.exists() else None
+        status[name] = {
+            **info,
+            "name": name,
+            "active": name == active,
+            "downloaded": path.exists(),
+            "size_mb": size_mb,
+        }
+    return status
 
 
 def _saved_face_data_exists():
@@ -53,10 +128,13 @@ def _decode_base64_frame(frame_data):
 
 
 def _load_model():
-    global _model
+    global _model, _loaded_model_name
 
-    if _model is None:
-        _model = YOLO(str(MODEL_PATH))
+    model_name = get_active_model_name()
+    if _model is None or _loaded_model_name != model_name:
+        model_path = BASE_DIR / AVAILABLE_MODELS[model_name]["file"]
+        _model = YOLO(str(model_path))
+        _loaded_model_name = model_name
 
     return _model
 
@@ -111,8 +189,15 @@ def _load_recognizer(force_reload=False):
 
         if TRAINER_FILE.exists():
             training_data = np.load(str(TRAINER_FILE), allow_pickle=False)
+            features = training_data["features"]
+            # Auto-retrain when feature dimensions changed (extractor upgrade)
+            if features.size > 0 and features.shape[1] != FEATURE_DIM:
+                print(f"[face] Feature dim changed ({features.shape[1]} → {FEATURE_DIM}), retraining...")
+                TRAINER_FILE.unlink()
+                train_faces()
+                return _recognizer
             _recognizer = {
-                "features": training_data["features"],
+                "features": features,
                 "labels": training_data["labels"]
             }
         else:
@@ -130,39 +215,97 @@ def faces_ready():
     return bool(label_map) and recognizer["features"].size > 0
 
 
+def _get_clahe():
+    global _clahe
+    if _clahe is None:
+        _clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    return _clahe
+
+
+def _compute_lbp(gray):
+    """Compute LBP code image using vectorised 8-neighbor circular pattern."""
+    h, w = gray.shape
+    p = np.pad(gray.astype(np.int32), 1, mode='edge')
+    center = p[1:h + 1, 1:w + 1]
+    neighbors = [
+        p[0:h,     0:w],      # (-1,-1)
+        p[0:h,     1:w + 1],  # (-1, 0)
+        p[0:h,     2:w + 2],  # (-1,+1)
+        p[1:h + 1, 2:w + 2],  # ( 0,+1)
+        p[2:h + 2, 2:w + 2],  # (+1,+1)
+        p[2:h + 2, 1:w + 1],  # (+1, 0)
+        p[2:h + 2, 0:w],      # (+1,-1)
+        p[1:h + 1, 0:w],      # ( 0,-1)
+    ]
+    lbp = np.zeros((h, w), dtype=np.uint8)
+    for k, n in enumerate(neighbors):
+        lbp += (n >= center).astype(np.uint8) * (1 << k)
+    return lbp
+
+
+def _align_face(gray_face):
+    """Rotate face image so detected eyes are level; skip if alignment is ambiguous."""
+    eye_detector = _load_eye_detector()
+    h, w = gray_face.shape[:2]
+
+    # Only search upper half of face for eyes
+    upper = gray_face[:h // 2, :]
+    eyes = eye_detector.detectMultiScale(upper, 1.05, 3, minSize=(8, 8))
+
+    if len(eyes) < 2:
+        return gray_face
+
+    eyes = sorted(eyes, key=lambda e: e[0])[:2]
+    (x1, y1, w1, h1), (x2, y2, w2, h2) = eyes[0], eyes[1]
+    cx1, cy1 = x1 + w1 // 2, y1 + h1 // 2
+    cx2, cy2 = x2 + w2 // 2, y2 + h2 // 2
+
+    # Reject if eyes are at very different heights or implausible separation
+    if abs(cy1 - cy2) > h * 0.15:
+        return gray_face
+    separation = abs(cx2 - cx1)
+    if separation < w * 0.15 or separation > w * 0.70:
+        return gray_face
+
+    angle = np.degrees(np.arctan2(cy2 - cy1, cx2 - cx1))
+    if abs(angle) > 20:
+        return gray_face
+
+    M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
+    return cv2.warpAffine(gray_face, M, (w, h),
+                          flags=cv2.INTER_LINEAR,
+                          borderMode=cv2.BORDER_REPLICATE)
+
+
 def _prepare_face(face):
-    prepared = cv2.resize(face, (96, 96))
-    prepared = cv2.equalizeHist(prepared)
-    prepared = cv2.GaussianBlur(prepared, (3, 3), 0)
-    return prepared
+    resized = cv2.resize(face, (96, 96))
+    aligned = _align_face(resized)
+    enhanced = _get_clahe().apply(aligned)
+    return enhanced
 
 
 def _extract_face_features(face):
+    """Extract grid-based LBP histogram feature vector from a grayscale face crop."""
     prepared = _prepare_face(face)
-    thumbnail = cv2.resize(prepared, (24, 24)).astype(np.float32).flatten() / 255.0
+    lbp = _compute_lbp(prepared)
 
-    histogram = cv2.calcHist([prepared], [0], None, [32], [0, 256]).astype(np.float32).flatten()
-    histogram_sum = float(histogram.sum())
+    cell_h = prepared.shape[0] // _GRID
+    cell_w = prepared.shape[1] // _GRID
+    features = []
+    for gy in range(_GRID):
+        for gx in range(_GRID):
+            cell = lbp[gy * cell_h:(gy + 1) * cell_h, gx * cell_w:(gx + 1) * cell_w]
+            hist = cv2.calcHist([cell], [0], None, [_HIST_BINS], [0, 256])
+            hist = hist.flatten().astype(np.float32)
+            s = float(hist.sum())
+            if s > 0:
+                hist /= s
+            features.append(hist)
 
-    if histogram_sum:
-        histogram /= histogram_sum
-
-    gradient_x = cv2.Sobel(prepared, cv2.CV_32F, 1, 0, ksize=3)
-    gradient_y = cv2.Sobel(prepared, cv2.CV_32F, 0, 1, ksize=3)
-    gradient = cv2.magnitude(gradient_x, gradient_y)
-    gradient = cv2.resize(gradient, (24, 24)).astype(np.float32).flatten()
-
-    gradient_norm = float(np.linalg.norm(gradient))
-
-    if gradient_norm:
-        gradient /= gradient_norm
-
-    feature = np.concatenate([thumbnail, histogram, gradient]).astype(np.float32)
-    feature_norm = float(np.linalg.norm(feature))
-
-    if feature_norm:
-        feature /= feature_norm
-
+    feature = np.concatenate(features).astype(np.float32)
+    norm = float(np.linalg.norm(feature))
+    if norm > 0:
+        feature /= norm
     return feature
 
 
@@ -177,17 +320,23 @@ def _predict_face(face_img):
     similarities = recognizer["features"] @ query_feature
     labels = recognizer["labels"]
 
-    best_label_id = None
-    best_similarity = -1.0
-
+    scores = {}
     for label_id in np.unique(labels):
         label_scores = similarities[labels == label_id]
         top_count = min(5, len(label_scores))
-        score = float(np.mean(np.sort(label_scores)[-top_count:]))
+        scores[int(label_id)] = float(np.mean(np.sort(label_scores)[-top_count:]))
 
-        if score > best_similarity:
-            best_similarity = score
-            best_label_id = int(label_id)
+    if not scores:
+        return "Unknown", 0.0
+
+    sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    best_label_id, best_similarity = sorted_scores[0]
+
+    # When multiple identities are enrolled, require a clear margin over 2nd best
+    if len(sorted_scores) >= 2:
+        second_similarity = sorted_scores[1][1]
+        if best_similarity - second_similarity < 0.05:
+            return "Unknown", max(0.0, best_similarity) * 100
 
     if best_label_id is not None and best_similarity >= MATCH_THRESHOLD and best_label_id in label_map:
         return label_map[best_label_id], max(0.0, best_similarity) * 100
@@ -320,7 +469,7 @@ def _detect_face(frame):
                 continue
 
             gray = cv2.cvtColor(person, cv2.COLOR_BGR2GRAY)
-            faces = face_detector.detectMultiScale(gray, 1.3, 5)
+            faces = face_detector.detectMultiScale(gray, 1.1, 4, minSize=(30, 30))
 
             for fx, fy, fw, fh in faces:
                 face_img = gray[fy:fy + fh, fx:fx + fw]

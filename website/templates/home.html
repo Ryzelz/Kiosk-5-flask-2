@@ -7,17 +7,24 @@
 <div class="wideye-shell pb-4">
     <style>
         .wideye-hero {
+            position: relative;
             border-radius: 0 0 18px 18px;
             overflow: hidden;
             background: #101725;
             margin-bottom: 40px;
+            height: clamp(180px, 30vw, 300px);
         }
 
         .wideye-hero img {
+            position: absolute;
+            inset: -16% 0;
             width: 100%;
-            height: clamp(240px, 42vw, 410px);
+            height: 132%;
             object-fit: cover;
             display: block;
+            transform: translate3d(0, var(--hero-parallax-offset, 0px), 0) scale(1.06);
+            will-change: transform;
+            transition: transform 0.08s linear;
         }
 
         .wideye-filter-bar {
@@ -62,37 +69,133 @@
             margin-right: 8px;
         }
 
+        .wideye-products-panel {
+            background: linear-gradient(180deg, rgba(18, 26, 41, 0.92), rgba(10, 15, 24, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 28px;
+        }
+
+        .wideye-products-head {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: end;
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+
+        .wideye-products-kicker {
+            color: #ffbf2f;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .wideye-products-title {
+            color: #f7f9ff;
+            font-size: clamp(1.5rem, 3vw, 2.2rem);
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .wideye-products-copy {
+            color: #94a2bc;
+            margin: 0;
+            max-width: 620px;
+        }
+
+        .wideye-products-count {
+            color: #c8d1e4;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .wideye-product-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 24px;
+        }
+
         .wideye-product-card {
             background: #121a29;
-            border: none;
-            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
             overflow: hidden;
-            height: 100%;
+            min-height: 100%;
             box-shadow: 0 18px 30px rgba(0, 0, 0, 0.18);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .wideye-product-image-wrap {
+            position: relative;
+            overflow: hidden;
+            background: #0c1220;
         }
 
         .wideye-product-card img {
             width: 100%;
-            height: clamp(220px, 32vw, 300px);
+            height: clamp(220px, 26vw, 320px);
             object-fit: cover;
             display: block;
         }
 
+        .wideye-product-badge {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(6, 11, 23, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f7f9ff;
+            border-radius: 999px;
+            padding: 7px 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            backdrop-filter: blur(10px);
+        }
+
         .wideye-product-body {
-            padding: 16px 14px 14px;
+            padding: 18px;
             color: #eef2fb;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .wideye-product-top {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
         .wideye-product-title {
             font-size: 1.22rem;
             font-weight: 700;
-            margin-bottom: 10px;
+            margin: 0;
+            line-height: 1.15;
         }
 
         .wideye-product-copy {
             color: #a8b4cc;
-            min-height: 72px;
-            margin-bottom: 12px;
+            margin: 0;
+            min-height: 60px;
+        }
+
+        .wideye-option-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
         }
 
         .wideye-meta-label {
@@ -109,7 +212,7 @@
             border-radius: 999px;
             color: #ffffff;
             font-size: 0.82rem;
-            padding: 4px 10px;
+            padding: 9px 12px;
         }
 
         .wideye-color-dot {
@@ -124,7 +227,7 @@
             border-radius: 999px;
             color: #ffffff;
             font-size: 0.82rem;
-            padding: 6px 10px;
+            padding: 9px 12px;
             color-scheme: dark;
         }
 
@@ -138,20 +241,59 @@
             color: #ffffff;
         }
 
+        .wideye-product-footer {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding-top: 4px;
+        }
+
+        .wideye-price-wrap {
+            text-align: center;
+        }
+
+        .wideye-price-current {
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 1.2rem;
+            line-height: 1.1;
+        }
+
+        .wideye-price-old {
+            color: #71809d;
+            text-decoration: line-through;
+            font-size: 0.96rem;
+        }
+
         .wideye-add-link {
             color: #ffffff;
-            font-weight: 600;
-            background: #24324b;
+            font-weight: 700;
+            background: linear-gradient(180deg, #30415f, #2a3954);
             border-radius: 999px;
-            padding: 10px 16px;
+            padding: 14px 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: min(100%, 220px);
-            margin: 0 auto;
+            width: 100%;
+            margin: 0;
+            font-size: 1rem;
         }
 
         @media (max-width: 767.98px) {
+            .wideye-products-panel {
+                padding: 18px;
+            }
+
+            .wideye-products-head {
+                margin-bottom: 18px;
+            }
+
+            .wideye-product-grid,
+            .wideye-option-grid {
+                grid-template-columns: 1fr;
+            }
+
             .wideye-product-copy {
                 min-height: auto;
             }
@@ -163,7 +305,8 @@
             }
 
             .wideye-hero img {
-                height: 180px;
+                inset: -12% 0;
+                height: 124%;
             }
 
             .wideye-usual-wrap {
@@ -181,6 +324,21 @@
 
             .wideye-filter-link {
                 font-size: 0.84rem;
+            }
+
+            .wideye-products-panel {
+                border-radius: 18px;
+                padding: 16px;
+            }
+
+            .wideye-products-count {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+
+            .wideye-product-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 16px;
             }
 
             .wideye-product-card img {
@@ -202,6 +360,10 @@
                 margin-bottom: 10px;
             }
 
+            .wideye-option-grid {
+                gap: 10px;
+            }
+
             .wideye-meta-label,
             .wideye-option-select,
             .wideye-option-select:disabled,
@@ -210,16 +372,17 @@
             }
 
             .wideye-add-link {
-                width: 100%;
                 padding: 9px 14px;
                 font-size: 0.88rem;
             }
         }
-    </style>
 
-    <section class="wideye-hero">
-        <img src="{{ url_for('static', filename='images/featured.jpg') }}" alt="Wideye featured coffee products">
-    </section>
+        @media (max-width: 767.98px) {
+            .wideye-product-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 
     <section class="wideye-usual-wrap">
         <div class="wideye-action-strip wideye-usual-strip d-flex flex-column align-items-center gap-3">
@@ -228,6 +391,15 @@
             </div>
             <a href="{{ url_for('views.usual_order') }}" class="wideye-action-button wideye-usual-button">The usual</a>
         </div>
+    </section>
+
+    <section class="wideye-hero" data-parallax-hero>
+        <img
+            src="{{ url_for('static', filename='images/featured.jpg') }}"
+            alt="Wideye featured coffee products"
+            class="wideye-hero-image"
+            data-parallax-image
+        >
     </section>
 
     <section class="wideye-filter-bar">
@@ -245,26 +417,43 @@
         <h3>No shop items available.</h3>
     </div>
     {% else %}
-    <section class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
+    <section class="wideye-products-panel">
+        <div class="wideye-products-head">
+            <div>
+                <div class="wideye-products-kicker">Available now</div>
+                <h2 class="wideye-products-title">Choose your next order</h2>
+                <p class="wideye-products-copy">Browse the current menu and kiosk items.</p>
+            </div>
+            <div class="wideye-products-count">{{ item_list | length }} items</div>
+        </div>
+
+        <div class="wideye-product-grid">
         {% for item in item_list %}
-        <div class="col">
             <div class="wideye-product-card">
                 {% set all_images = parse_options(item.product_picture) %}
-                <img src="{{ get_product_image(item) }}" alt="{{ item.product_name }}"
-                     data-images="{{ all_images | join('||') }}" class="wideye-product-img">
+                <div class="wideye-product-image-wrap">
+                    <img src="{{ get_product_image(item) }}" alt="{{ item.product_name }}"
+                         data-images="{{ all_images | join('||') }}" class="wideye-product-img">
+                    <div class="wideye-product-badge">
+                        <i class="bi bi-cup-hot-fill"></i>
+                        {{ 'In stock' if item.in_stock > 0 else 'Sold out' }}
+                    </div>
+                </div>
                 <div class="wideye-product-body">
-                    <h3 class="wideye-product-title">{{ item.product_name }}</h3>
-                    <p class="wideye-product-copy">
-                        Premium Wideye selection with rich flavor notes and carefully prepared presentation.
-                    </p>
+                    <div class="wideye-product-top">
+                        <h3 class="wideye-product-title">{{ item.product_name }}</h3>
+                        <p class="wideye-product-copy">
+                            Premium Wideye selection with rich flavor notes and carefully prepared presentation.
+                        </p>
+                    </div>
 
                     {% set size_options = parse_options(item.size) %}
                     {% set sugar_options = parse_options(item.sugar) %}
                     {% set milk_options = parse_options(item.milk) %}
                     {% set shot_options = parse_options(item.shot) %}
                     <form action="/add-to-cart/{{ item.id }}" method="POST">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-7">
+                    <div class="wideye-option-grid">
+                        <div>
                             <label class="wideye-meta-label">Size</label>
                             {% if size_options %}
                             <select class="wideye-option-select wideye-size-select" name="size">
@@ -276,7 +465,7 @@
                             <div class="wideye-meta-value">Standard</div>
                             {% endif %}
                         </div>
-                        <div class="col-5">
+                        <div>
                             <label class="wideye-meta-label">Sugar</label>
                             <select class="wideye-option-select" name="sugar" {% if not sugar_options %}disabled{% endif %}>
                                 {% if not sugar_options %}
@@ -288,7 +477,7 @@
                                 {% endif %}
                             </select>
                         </div>
-                        <div class="col-4">
+                        <div>
                             <label class="wideye-meta-label">Milk</label>
                             <select class="wideye-option-select" name="milk" {% if not milk_options %}disabled{% endif %}>
                                 {% if not milk_options %}
@@ -300,7 +489,7 @@
                                 {% endif %}
                             </select>
                         </div>
-                        <div class="col-4">
+                        <div>
                             <label class="wideye-meta-label">Shot</label>
                             <select class="wideye-option-select" name="shot" {% if not shot_options %}disabled{% endif %}>
                                 {% if not shot_options %}
@@ -312,7 +501,7 @@
                                 {% endif %}
                             </select>
                         </div>
-                        <div class="col-4">
+                        <div>
                             <label class="wideye-meta-label">Add-ons</label>
                             <div class="wideye-meta-value">
                                 {% if sugar_options or milk_options or shot_options %}
@@ -324,18 +513,18 @@
                         </div>
                     </div>
 
-                    <div class="d-flex flex-column align-items-center gap-3 mt-3">
-                        <div>
-                            <div class="fw-bold">PhP {{ item.current_price }}</div>
-                            <small class="text-secondary"><s>PhP {{ item.previous_price }}</s></small>
+                    <div class="wideye-product-footer">
+                        <div class="wideye-price-wrap">
+                            <div class="wideye-price-current">PhP {{ item.current_price }}</div>
+                            <div class="wideye-price-old">PhP {{ item.previous_price }}</div>
                         </div>
                         <button class="wideye-add-link border-0" type="submit">Add to cart</button>
                     </div>
                     </form>
                 </div>
             </div>
-        </div>
         {% endfor %}
+        </div>
     </section>
     {% endif %}
 </div>
@@ -354,5 +543,38 @@ document.querySelectorAll('.wideye-size-select').forEach(function(select) {
         }
     });
 });
+
+(function () {
+    var hero = document.querySelector('[data-parallax-hero]');
+    var heroImage = document.querySelector('[data-parallax-image]');
+
+    if (!hero || !heroImage || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+    }
+
+    var ticking = false;
+
+    function updateParallax() {
+        var rect = hero.getBoundingClientRect();
+        var range = Math.min(80, rect.height * 0.24);
+        var progress = (-rect.top) / Math.max(1, rect.height);
+        var centeredProgress = (progress - 0.5) * 2;
+        var limitedOffset = Math.max(-range, Math.min(range, centeredProgress * range));
+
+        hero.style.setProperty('--hero-parallax-offset', limitedOffset.toFixed(2) + 'px');
+        ticking = false;
+    }
+
+    function requestUpdate() {
+        if (!ticking) {
+            window.requestAnimationFrame(updateParallax);
+            ticking = true;
+        }
+    }
+
+    requestUpdate();
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
+})();
 </script>
 {% endblock %}

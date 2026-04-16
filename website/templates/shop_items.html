@@ -32,6 +32,17 @@
             font-weight: 700;
         }
 
+        .wideye-admin-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #ffffff;
+            font-weight: 700;
+        }
+
         .wideye-admin-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -149,7 +160,10 @@
             <h1 class="h3 mb-1">Shop Items</h1>
             <p class="wideye-admin-copy">Review your products, option limits, stock, and flash-sale status in one place.</p>
         </div>
-        <a href="/add-shop-items" class="wideye-admin-button">Add New Item</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="/admin-page" class="wideye-admin-secondary">Back to Dashboard</a>
+            <a href="/add-shop-items" class="wideye-admin-button">Add New Item</a>
+        </div>
     </div>
 
     {% if items | length < 1 %}

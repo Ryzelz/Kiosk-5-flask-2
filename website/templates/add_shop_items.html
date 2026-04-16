@@ -16,6 +16,15 @@
             width: 100%;
         }
 
+        .wideye-add-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
         .wideye-add-grid {
             display: grid;
             grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -115,6 +124,10 @@
         }
 
         @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+            .wideye-add-header {
+                margin-bottom: 16px;
+            }
+
             .wideye-add-form {
                 padding: 18px;
                 border-radius: 16px;
@@ -136,9 +149,12 @@
         }
     </style>
 
-    <div class="mb-4">
-        <h1 class="h3 mb-1">Add New Product</h1>
-        <p style="color:#a8b4cc;" class="mb-0">Fill in the details below to add a product to the catalogue.</p>
+    <div class="wideye-add-header">
+        <div>
+            <h1 class="h3 mb-1">Add New Product</h1>
+            <p style="color:#a8b4cc;" class="mb-0">Fill in the details below to add a product to the catalogue.</p>
+        </div>
+        <a href="/admin-page" class="wideye-add-secondary">Back to Dashboard</a>
     </div>
 
     <div class="wideye-add-form">
