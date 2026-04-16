@@ -1,0 +1,423 @@
+{% extends 'base.html' %}
+
+{% block title %} Analytics {% endblock %}
+
+{% block body %}
+<div class="wideye-shell py-4">
+    <style>
+        /* ── stat cards ── */
+        .wideye-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .wideye-stat-card {
+            background: #121a29;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 22px 22px 18px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .wideye-stat-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .wideye-stat-value {
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.1;
+        }
+
+        .wideye-stat-label {
+            font-size: 0.78rem;
+            color: #94a2bc;
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── panels ── */
+        .wideye-panel {
+            background: #121a29;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 22px 24px;
+        }
+
+        .wideye-panel-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #d7dcee;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 18px;
+        }
+
+        /* ── two-col rows ── */
+        .wideye-row-6040 {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 16px;
+        }
+
+        /* ── transactions table ── */
+        .wideye-tx-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .wideye-tx-table th {
+            font-size: 0.73rem;
+            color: #94a2bc;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0 10px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .wideye-tx-table td {
+            padding: 10px 10px;
+            font-size: 0.84rem;
+            color: #d7dcee;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: middle;
+        }
+
+        .wideye-tx-table tbody tr:last-child td { border-bottom: none; }
+
+        .wideye-tx-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .badge-pending   { background: rgba(255,191,47,0.15);  color: #ffbf2f; }
+        .badge-accepted  { background: rgba(52,211,153,0.15);  color: #34d399; }
+        .badge-delivered { background: rgba(96,165,250,0.15);  color: #60a5fa; }
+        .badge-canceled  { background: rgba(255,99,132,0.15);  color: #ff6384; }
+
+        /* ── todo list ── */
+        .wideye-todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .wideye-todo-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: #d7dcee;
+        }
+
+        .wideye-todo-item.done {
+            color: #4b5c7a;
+            text-decoration: line-through;
+        }
+
+        .wideye-todo-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 2px solid #4b5c7a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.65rem;
+        }
+
+        .wideye-todo-check.checked {
+            background: #34d399;
+            border-color: #34d399;
+            color: #0f172a;
+        }
+
+        /* ── seed btn ── */
+        .wideye-btn-seed {
+            background: rgba(52,211,153,0.15);
+            color: #34d399;
+            border: 1px solid rgba(52,211,153,0.3);
+            border-radius: 999px;
+            padding: 9px 18px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .wideye-btn-back {
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 999px;
+            padding: 9px 18px;
+            color: #fff;
+            font-size: 0.84rem;
+            text-decoration: none;
+        }
+
+        /* ── responsive ── */
+        @media (max-width: 1024px) {
+            .wideye-stat-grid { grid-template-columns: repeat(2, 1fr); }
+            .wideye-row-6040  { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            .wideye-stat-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Analytics</h1>
+            <p style="color:#a8b4cc;" class="mb-0">Live store insights at a glance.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/seed-demo-data" class="wideye-btn-seed">
+                <i class="bi bi-database-fill-add me-1"></i>Seed Demo Data
+            </a>
+            <a href="/admin-page" class="wideye-btn-back">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- ── Stat cards ── -->
+    <div class="wideye-stat-grid mb-4">
+        <div class="wideye-stat-card">
+            <div class="wideye-stat-icon" style="background:rgba(52,211,153,0.15);color:#34d399;">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div>
+                <div class="wideye-stat-value">₱{{ "%.0f"|format(total_revenue) }}</div>
+                <div class="wideye-stat-label">Total Revenue</div>
+            </div>
+        </div>
+
+        <div class="wideye-stat-card">
+            <div class="wideye-stat-icon" style="background:rgba(255,191,47,0.15);color:#ffbf2f;">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div>
+                <div class="wideye-stat-value">{{ pending_count }}</div>
+                <div class="wideye-stat-label">Pending Orders</div>
+            </div>
+        </div>
+
+        <div class="wideye-stat-card">
+            <div class="wideye-stat-icon" style="background:rgba(123,97,255,0.15);color:#a77dff;">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div>
+                <div class="wideye-stat-value">{{ total_visitors }}</div>
+                <div class="wideye-stat-label">Total Visitors</div>
+            </div>
+        </div>
+
+        <div class="wideye-stat-card">
+            <div class="wideye-stat-icon" style="background:rgba(56,189,248,0.15);color:#38bdf8;">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <div>
+                <div class="wideye-stat-value">{{ total_orders }}</div>
+                <div class="wideye-stat-label">Total Orders</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Charts row ── -->
+    <div class="wideye-row-6040 mb-4">
+        <div class="wideye-panel">
+            <div class="wideye-panel-title">Popular Products</div>
+            {% if popular_labels %}
+            <canvas id="popularChart" height="160"></canvas>
+            {% else %}
+            <p style="color:#4b5c7a;font-size:0.85rem;">No order data yet. Seed demo data to see this chart.</p>
+            {% endif %}
+        </div>
+
+        <div class="wideye-panel">
+            <div class="wideye-panel-title">Monthly Sales (₱)</div>
+            <canvas id="monthlyChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- ── Transactions + Todo row ── -->
+    <div class="wideye-row-6040">
+        <div class="wideye-panel">
+            <div class="wideye-panel-title">Latest Transactions</div>
+            {% if latest_orders %}
+            <div style="overflow-x:auto;">
+                <table class="wideye-tx-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Customer</th>
+                            <th>Product</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in latest_orders %}
+                        {% set s = o.status | lower %}
+                        <tr>
+                            <td style="color:#38bdf8;font-weight:700;">{{ o.id }}</td>
+                            <td>{{ o.customer.username }}</td>
+                            <td>{{ o.product.product_name }}</td>
+                            <td style="color:#fff;font-weight:700;">₱{{ "%.0f"|format(o.price) }}</td>
+                            <td style="color:#94a2bc;text-transform:capitalize;">{{ o.payment_method }}</td>
+                            <td>
+                                <span class="wideye-tx-badge
+                                    {% if s == 'pending' %}badge-pending
+                                    {% elif s == 'accepted' %}badge-accepted
+                                    {% elif s == 'delivered' %}badge-delivered
+                                    {% else %}badge-canceled{% endif %}">
+                                    {{ o.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:#4b5c7a;font-size:0.85rem;">No transactions yet. Seed demo data to populate this list.</p>
+            {% endif %}
+        </div>
+
+        <div class="wideye-panel">
+            <div class="wideye-panel-title">Admin To-Do</div>
+            <ul class="wideye-todo-list">
+                <li class="wideye-todo-item done">
+                    <div class="wideye-todo-check checked"><i class="bi bi-check"></i></div>
+                    Update seasonal menu items
+                </li>
+                <li class="wideye-todo-item done">
+                    <div class="wideye-todo-check checked"><i class="bi bi-check"></i></div>
+                    Review pending orders
+                </li>
+                <li class="wideye-todo-item">
+                    <div class="wideye-todo-check"></div>
+                    Restock almond milk supplies
+                </li>
+                <li class="wideye-todo-item">
+                    <div class="wideye-todo-check"></div>
+                    Check thermal printer paper
+                </li>
+                <li class="wideye-todo-item">
+                    <div class="wideye-todo-check"></div>
+                    Review weekly revenue report
+                </li>
+                <li class="wideye-todo-item">
+                    <div class="wideye-todo-check"></div>
+                    Train new staff on kiosk system
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+    Chart.defaults.color = '#94a2bc';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+
+    /* ── Popular Products bar chart ── */
+    {% if popular_labels %}
+    const popularCtx = document.getElementById('popularChart').getContext('2d');
+    new Chart(popularCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ popular_labels | tojson }},
+            datasets: [{
+                label: 'Units Sold',
+                data: {{ popular_values | tojson }},
+                backgroundColor: [
+                    'rgba(56,189,248,0.7)',
+                    'rgba(52,211,153,0.7)',
+                    'rgba(255,191,47,0.7)',
+                    'rgba(167,125,255,0.7)',
+                    'rgba(255,99,132,0.7)',
+                    'rgba(251,146,60,0.7)',
+                ],
+                borderRadius: 8,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#94a2bc' } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a2bc', stepSize: 1 } }
+            }
+        }
+    });
+    {% endif %}
+
+    /* ── Monthly Sales line chart ── */
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_labels | tojson }},
+            datasets: [{
+                label: 'Sales (₱)',
+                data: {{ monthly_values | tojson }},
+                borderColor: '#38bdf8',
+                backgroundColor: 'rgba(56,189,248,0.12)',
+                borderWidth: 2.5,
+                pointBackgroundColor: '#38bdf8',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.35,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ₱${ctx.parsed.y.toLocaleString()}`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#94a2bc' } },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: '#94a2bc',
+                        callback: val => '₱' + val.toLocaleString()
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -102,8 +102,9 @@ class Order(db.Model):
     status = db.Column(db.String(100), nullable=False)
     payment_method = db.Column(db.String(50), nullable=False, default='cashless')
     payment_id = db.Column(db.String(1000), nullable=False)
+    date_placed = db.Column(db.DateTime, default=datetime.utcnow)
 
-    customer_link = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    customer_link= db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
     product_link = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
 
     # customer

@@ -156,12 +156,19 @@ def sync_order_schema():
     if 'payment_method' not in existing_columns:
         statements.append("ALTER TABLE \"order\" ADD COLUMN payment_method VARCHAR(50) DEFAULT 'cashless' NOT NULL")
 
+    if 'date_placed' not in existing_columns:
+        statements.append("ALTER TABLE \"order\" ADD COLUMN date_placed DATETIME DEFAULT NULL")
+
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
 
         connection.execute(text(
             'UPDATE "order" SET payment_id = COALESCE(NULLIF(TRIM(payment_id), \'\'), \'legacy-order\')'
+        ))
+
+        connection.execute(text(
+            "UPDATE \"order\" SET date_placed = datetime('now') WHERE date_placed IS NULL"
         ))
 
         for col in ('sugar', 'milk', 'shot'):
@@ -206,7 +213,7 @@ def sync_usual_order_schema():
         db.session.commit()
 
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
     INSTANCE_DIR.mkdir(exist_ok=True)
     MEDIA_DIR.mkdir(exist_ok=True)
@@ -217,6 +224,9 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', default_database_uri)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MEDIA_DIR'] = str(MEDIA_DIR)
+
+    if test_config:
+        app.config.update(test_config)
 
     db.init_app(app)
 

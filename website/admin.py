@@ -417,6 +417,150 @@ def admin_page():
     return render_template('404.html')
 
 
+@admin.route('/analytics')
+@login_required
+def analytics_page():
+    if not current_user_is_admin():
+        return render_template('404.html')
+
+    revenue_orders = Order.query.filter(Order.status.in_(['Accepted', 'Delivered'])).all()
+    total_revenue = sum(o.price * o.quantity for o in revenue_orders)
+
+    pending_count = Order.query.filter_by(status='Pending').count()
+    total_visitors = Customer.query.filter_by(is_admin=False).count()
+    total_orders = Order.query.count()
+
+    latest_orders = Order.query.order_by(Order.id.desc()).limit(10).all()
+
+    popular_raw = db.session.query(
+        Product.product_name,
+        func.sum(Order.quantity).label('total_qty'),
+    ).join(Order, Order.product_link == Product.id) \
+     .group_by(Product.id) \
+     .order_by(func.sum(Order.quantity).desc()) \
+     .limit(6).all()
+
+    popular_labels = [r.product_name for r in popular_raw]
+    popular_values = [int(r.total_qty) for r in popular_raw]
+
+    from datetime import datetime, timedelta
+    monthly_labels = []
+    monthly_values = []
+    now = datetime.utcnow()
+    for i in range(5, -1, -1):
+        first = (now.replace(day=1) - timedelta(days=i * 28)).replace(day=1)
+        if first.month == 12:
+            last = first.replace(year=first.year + 1, month=1, day=1)
+        else:
+            last = first.replace(month=first.month + 1, day=1)
+        total = db.session.query(func.sum(Order.price)).filter(
+            Order.date_placed >= first,
+            Order.date_placed < last,
+        ).scalar() or 0
+        monthly_labels.append(first.strftime('%b %Y'))
+        monthly_values.append(round(total, 2))
+
+    return render_template(
+        'analytics.html',
+        total_revenue=total_revenue,
+        pending_count=pending_count,
+        total_visitors=total_visitors,
+        total_orders=total_orders,
+        latest_orders=latest_orders,
+        popular_labels=popular_labels,
+        popular_values=popular_values,
+        monthly_labels=monthly_labels,
+        monthly_values=monthly_values,
+        get_product_image=get_product_image,
+    )
+
+
+@admin.route('/seed-demo-data')
+@login_required
+def seed_demo_data():
+    if not current_user_is_admin():
+        return render_template('404.html')
+
+    import random
+    from werkzeug.security import generate_password_hash
+
+    demo_products = [
+        {'name': 'Caramel Latte',        'price': 145, 'prev': 160},
+        {'name': 'Matcha Frappe',         'price': 155, 'prev': 170},
+        {'name': 'Classic Espresso',      'price': 95,  'prev': 110},
+        {'name': 'Hazelnut Cappuccino',   'price': 135, 'prev': 150},
+        {'name': 'Vanilla Cold Brew',     'price': 165, 'prev': 180},
+    ]
+    for dp in demo_products:
+        if not Product.query.filter_by(product_name=dp['name']).first():
+            p = Product()
+            p.product_name    = dp['name']
+            p.current_price   = dp['price']
+            p.previous_price  = dp['prev']
+            p.in_stock        = 50
+            p.size            = 'Small, Medium, Large'
+            p.sugar           = 'Low, Regular, Extra'
+            p.milk            = 'Whole, Oat, Almond'
+            p.shot            = 'Single, Double'
+            p.product_picture = '/media/default.jpg'
+            p.flash_sale      = False
+            db.session.add(p)
+    db.session.commit()
+
+    demo_customers = [
+        ('juan@demo.com',   'juandelacruz'),
+        ('maria@demo.com',  'mariasantos'),
+        ('pedro@demo.com',  'pedroreyes'),
+        ('ana@demo.com',    'anagonzales'),
+        ('carlos@demo.com', 'carlosmendoza'),
+    ]
+    for email, uname in demo_customers:
+        if not Customer.query.filter_by(email=email).first():
+            c = Customer()
+            c.email             = email
+            c.username          = uname
+            c.password_hash     = generate_password_hash('demo1234')
+            c.is_admin          = False
+            c.face_profile_name = uname
+            db.session.add(c)
+    db.session.commit()
+
+    products  = Product.query.filter(Product.product_name.in_(
+        [d['name'] for d in demo_products])).all()
+    customers = Customer.query.filter(Customer.email.in_(
+        [e for e, _ in demo_customers])).all()
+
+    statuses = ['Accepted', 'Accepted', 'Delivered', 'Delivered',
+                'Pending',  'Accepted', 'Canceled',  'Delivered']
+    sizes    = ['Small', 'Medium', 'Large']
+    from datetime import datetime, timedelta
+
+    for i in range(30):
+        prod = random.choice(products)
+        qty  = random.randint(1, 3)
+        # spread across last 6 months
+        days_ago = random.randint(0, 180)
+        order_date = datetime.utcnow() - timedelta(days=days_ago)
+        o = Order()
+        o.quantity       = qty
+        o.product_link   = prod.id
+        o.customer_link  = random.choice(customers).id
+        o.size           = random.choice(sizes)
+        o.sugar          = 'Regular'
+        o.milk           = 'Whole'
+        o.shot           = 'Single'
+        o.price          = prod.current_price * qty
+        o.status         = random.choice(statuses)
+        o.payment_method = random.choice(['cash', 'cashless'])
+        o.payment_id     = f'demo-{int(time.time())}-{i}'
+        o.date_placed    = order_date
+        db.session.add(o)
+    db.session.commit()
+
+    flash('Demo data seeded! Reload the analytics page to see it.', 'success')
+    return redirect('/analytics')
+
+
 
 
 

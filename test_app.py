@@ -44,11 +44,7 @@ def app(tmp_path):
 
     from website import create_app, db as _db
 
-    application = create_app()
-    application.config.update({
-        'TESTING': True,
-        'WTF_CSRF_ENABLED': False,
-    })
+    application = create_app({'TESTING': True, 'WTF_CSRF_ENABLED': False})
 
     with application.app_context():
         yield application
