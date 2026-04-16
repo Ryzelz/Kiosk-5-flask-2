@@ -2,21 +2,25 @@
 Thermal Printer Driver for QR204 on Raspberry Pi 5.
 
 Communicates over USB serial using ESC/POS commands.
-Default device: /dev/ttyUSB0 (typical for USB-to-serial adapters).
-Adjust SERIAL_PORT or pass it as an argument if your wiring differs.
+The port is auto-detected at startup. You can also pass --port explicitly.
 
 Usage:
     python thermal_printer.py
     python thermal_printer.py --port /dev/ttyUSB0 --baud 9600
+    python thermal_printer.py --list-ports
 """
 
 import argparse
+import glob
+import os
 import time
 
 try:
     import serial
+    from serial.tools import list_ports
 except ImportError:
     serial = None
+    list_ports = None
 
 # ── ESC/POS command constants ────────────────────────────────────────────────
 ESC = b'\x1b'
@@ -42,9 +46,56 @@ UNDERLINE_ON = ESC + b'\x2d\x01'
 UNDERLINE_OFF = ESC + b'\x2d\x00'
 
 # Default serial settings for QR204
-DEFAULT_PORT = '/dev/ttyUSB0'
+DEFAULT_PORT = None   # None = auto-detect
 DEFAULT_BAUD = 9600
 DEFAULT_TIMEOUT = 5
+
+# Candidate port patterns to scan when auto-detecting (Linux + macOS + Windows)
+_PORT_CANDIDATES = [
+    '/dev/ttyUSB*',
+    '/dev/ttyACM*',
+    '/dev/usb/lp*',
+    '/dev/ttyS*',
+    '/dev/tty.usbserial*',
+    '/dev/tty.usbmodem*',
+]
+
+
+def find_printer_port():
+    """
+    Return the first likely serial port for the thermal printer.
+
+    Priority:
+    1. ttyUSB* (USB-to-serial adapter, most common for QR204)
+    2. ttyACM* (CDC-ACM USB class)
+    3. usb/lp* (USB printer class — raw, no serial framing)
+    4. Any other port reported by pyserial list_ports
+    """
+    # Glob-based scan (Linux / macOS)
+    for pattern in _PORT_CANDIDATES:
+        matches = sorted(glob.glob(pattern))
+        if matches:
+            return matches[0]
+
+    # Fallback: pyserial's own port enumerator (works on all platforms)
+    if list_ports:
+        ports = sorted(list_ports.comports(), key=lambda p: p.device)
+        if ports:
+            return ports[0].device
+
+    return None
+
+
+def _list_all_ports():
+    """Return a list of all available serial port device strings."""
+    found = []
+    for pattern in _PORT_CANDIDATES:
+        found.extend(sorted(glob.glob(pattern)))
+    if list_ports:
+        for p in sorted(list_ports.comports(), key=lambda x: x.device):
+            if p.device not in found:
+                found.append(p.device)
+    return found
 
 
 class QR204Printer:
@@ -56,7 +107,8 @@ class QR204Printer:
                 'pyserial is required. Install it with: pip install pyserial'
             )
 
-        self.port = port
+        # If no port given, auto-detect
+        self.port = port or find_printer_port()
         self.baudrate = baudrate
         self.timeout = timeout
         self._connection = None
@@ -66,6 +118,15 @@ class QR204Printer:
     def open(self):
         if self._connection and self._connection.is_open:
             return
+
+        if not self.port:
+            available = _list_all_ports()
+            hint = '\n  '.join(available) if available else '  (none found — is the printer plugged in?)'
+            raise RuntimeError(
+                f'No serial port found for the thermal printer.\n'
+                f'Available ports:\n  {hint}\n'
+                f'Pass --port <device> to specify one explicitly.'
+            )
 
         self._connection = serial.Serial(
             port=self.port,
@@ -166,12 +227,32 @@ def demo_receipt(printer):
 
 def main():
     parser = argparse.ArgumentParser(description='QR204 thermal printer driver for Raspberry Pi 5')
-    parser.add_argument('--port', default=DEFAULT_PORT, help=f'Serial port (default: {DEFAULT_PORT})')
+    parser.add_argument('--port', default=None, help='Serial port (default: auto-detect)')
     parser.add_argument('--baud', type=int, default=DEFAULT_BAUD, help=f'Baud rate (default: {DEFAULT_BAUD})')
     parser.add_argument('--text', type=str, default=None, help='Print a single line of text and exit')
+    parser.add_argument('--list-ports', action='store_true', help='List all available serial ports and exit')
     args = parser.parse_args()
 
-    with QR204Printer(port=args.port, baudrate=args.baud) as printer:
+    if args.list_ports:
+        ports = _list_all_ports()
+        if ports:
+            print('Available serial ports:')
+            for p in ports:
+                print(f'  {p}')
+        else:
+            print('No serial ports found. Is the printer plugged in?')
+        return
+
+    port = args.port or find_printer_port()
+    if port:
+        print(f'Using port: {port}')
+    else:
+        print('ERROR: No serial port detected.')
+        print('Plug in the printer and try again, or pass --port <device> explicitly.')
+        print('Run with --list-ports to see all available ports.')
+        return
+
+    with QR204Printer(port=port, baudrate=args.baud) as printer:
         if args.text:
             printer.println(args.text)
             printer.feed(3)
