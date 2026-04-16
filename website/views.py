@@ -241,8 +241,9 @@ def create_order_cash(customer_id, items_list):
     }
 
 
-def print_cash_receipt(orders, total):
-    """Best-effort thermal receipt for cash orders via QR204."""
+def print_receipt(orders, total, payment_method='cash'):
+    """Best-effort thermal receipt via QR204. Works for both cash and cashless orders."""
+    import traceback
     try:
         from thermal_printer import QR204Printer
         with QR204Printer() as printer:
@@ -252,7 +253,8 @@ def print_cash_receipt(orders, total):
             printer.println('WIDEYE KIOSK')
             printer.double_size(False)
             printer.bold(False)
-            printer.println('Cash Payment Receipt')
+            subtitle = 'Cash Payment Receipt' if payment_method == 'cash' else 'Payment Receipt'
+            printer.println(subtitle)
             printer.print_separator()
 
             printer.align('left')
@@ -273,13 +275,22 @@ def print_cash_receipt(orders, total):
             printer.align('center')
             printer.feed(1)
             printer.bold()
-            printer.println('PLEASE PAY AT THE COUNTER')
+            if payment_method == 'cash':
+                printer.println('PLEASE PAY AT THE COUNTER')
+            else:
+                printer.println('PAYMENT CONFIRMED')
             printer.bold(False)
-            printer.println('Thank you!')
+            printer.println('Thank you for your order!')
 
             printer.cut()
     except Exception as exc:
-        print(f'Thermal printer error (non-fatal): {exc}')
+        print(f'[Thermal Printer] Error (non-fatal): {exc}')
+        traceback.print_exc()
+
+
+def print_cash_receipt(orders, total):
+    """Backward-compatible alias."""
+    print_receipt(orders, total, payment_method='cash')
 
 
 @views.route('/')
@@ -509,10 +520,17 @@ def check_payment(payment_intent_id):
         status = pi['attributes']['status']
 
         if status == 'succeeded':
-            Order.query.filter_by(
+            updated = Order.query.filter_by(
                 payment_id=payment_intent_id,
+                status='Pending',
             ).update({'status': 'Accepted'})
             db.session.commit()
+
+            # Print receipt only on the first transition (Pending → Accepted)
+            if updated:
+                orders = Order.query.filter_by(payment_id=payment_intent_id).all()
+                total = sum(o.price * o.quantity for o in orders)
+                print_receipt(orders, total, payment_method='cashless')
 
         return jsonify({'status': status})
     except Exception as e:
