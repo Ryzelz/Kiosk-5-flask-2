@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %} Choose Payment {% endblock %}
+
+{% block body %}
+
+<div class="wideye-shell py-4">
+    <style>
+        .wideye-choose-layout {
+            max-width: min(900px, 100%);
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .wideye-choose-header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .wideye-choose-card {
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: clamp(24px, 4vw, 40px);
+            text-align: center;
+            transition: border-color 0.2s, transform 0.15s;
+            cursor: pointer;
+        }
+
+        .wideye-choose-card:hover {
+            border-color: rgba(255, 191, 47, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .wideye-choose-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 18px;
+        }
+
+        .wideye-choose-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+
+        .wideye-choose-desc {
+            color: #94a2bc;
+            font-size: 0.92rem;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .wideye-choose-btn {
+            display: inline-block;
+            border: none;
+            border-radius: 999px;
+            padding: 13px 32px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .wideye-choose-btn-cash {
+            background: #34d399;
+            color: #111827;
+        }
+
+        .wideye-choose-btn-cashless {
+            background: #ffbf2f;
+            color: #111827;
+        }
+
+        .wideye-choose-total {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .wideye-choose-total-amount {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .wideye-choose-back {
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+
+        @media (max-width: 575.98px) {
+            .wideye-choose-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="wideye-choose-layout">
+        <div class="wideye-choose-header">
+            <h1 class="h3 mb-1">How would you like to pay?</h1>
+            <p class="text-secondary mb-0">Choose your payment method to complete your order.</p>
+        </div>
+
+        <div class="wideye-choose-total">
+            <span class="text-secondary">Order total:</span>
+            <div class="wideye-choose-total-amount">PhP {{ '%.2f'|format(total) }}</div>
+        </div>
+
+        <form method="POST" action="{{ url_for('views.place_order') }}">
+            <div class="wideye-choose-card" onclick="this.closest('form').querySelector('[name=payment_method]').value='cash'; this.closest('form').submit();">
+                <input type="hidden" name="payment_method" value="cash">
+                <div class="wideye-choose-icon" style="background:rgba(52,211,153,0.15);color:#34d399;">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <div class="wideye-choose-title">Pay with Cash</div>
+                <div class="wideye-choose-desc">
+                    A receipt will be printed with your order details and total.
+                    Pay at the counter.
+                </div>
+                <button type="submit" class="wideye-choose-btn wideye-choose-btn-cash">
+                    <i class="bi bi-cash-stack"></i> Cash
+                </button>
+            </div>
+        </form>
+
+        <form method="POST" action="{{ url_for('views.place_order') }}">
+            <div class="wideye-choose-card" onclick="this.closest('form').querySelector('[name=payment_method]').value='cashless'; this.closest('form').submit();">
+                <input type="hidden" name="payment_method" value="cashless">
+                <div class="wideye-choose-icon" style="background:rgba(255,191,47,0.15);color:#ffbf2f;">
+                    <i class="bi bi-qr-code"></i>
+                </div>
+                <div class="wideye-choose-title">Pay Cashless (QR)</div>
+                <div class="wideye-choose-desc">
+                    A QR code will be shown on screen. Scan it with your banking app
+                    to pay instantly.
+                </div>
+                <button type="submit" class="wideye-choose-btn wideye-choose-btn-cashless">
+                    <i class="bi bi-qr-code"></i> Cashless
+                </button>
+            </div>
+        </form>
+
+        <div class="wideye-choose-back">
+            <a href="/cart" class="btn" style="border:1px solid rgba(255,255,255,0.14);color:#fff;border-radius:999px;padding:11px 22px;">Back to Cart</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
