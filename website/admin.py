@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from flask import Blueprint, render_template, flash, send_from_directory, redirect, current_app, request
+from flask import Blueprint, render_template, flash, send_from_directory, redirect, current_app, request, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from .forms import ShopItemsForm, UpdateShopItemsForm, OrderForm, AdminCustomerUpdateForm
@@ -439,6 +439,51 @@ def face_model_settings():
 
     model_status = face_module.get_model_status()
     return render_template('face_model.html', model_status=model_status)
+
+
+@admin.route('/face-model/retrain', methods=['POST'])
+@login_required
+def retrain_face_model():
+    if not current_user_is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    import yolov10 as face_module
+
+    try:
+        if face_module.TRAINER_FILE.exists():
+            face_module.TRAINER_FILE.unlink()
+        face_module.train_faces()
+        label_map = face_module._load_label_map(force_reload=True)
+        n_people = len(label_map)
+        return jsonify({"ok": True, "people": n_people, "names": list(label_map.values())})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@admin.route('/face-model/evaluate', methods=['POST'])
+@login_required
+def evaluate_face_model():
+    if not current_user_is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    import yolov10 as face_module  # noqa: F811
+
+    data = request.get_json(silent=True) or {}
+    model_name = data.get('model') or face_module.get_active_model_name()
+
+    if model_name not in face_module.AVAILABLE_MODELS:
+        return jsonify({"ok": False, "error": f"Unknown model '{model_name}'"}), 400
+
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        import evaluate_model as em
+        result = em.run_evaluation(model_name)
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @admin.route('/analytics')

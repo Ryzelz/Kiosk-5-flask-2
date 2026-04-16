@@ -54,11 +54,21 @@ def _result(label, value, note=""):
 
 
 def _rating(value, thresholds, labels, reverse=False):
-    """Return a rating label.  thresholds = ascending list of break-points."""
-    for threshold, label in zip(thresholds, labels[:-1]):
-        if (value <= threshold) if not reverse else (value >= threshold):
-            return label
-    return labels[-1]
+    """Return a rating label.  thresholds = ascending list of break-points.
+    reverse=False (lower-is-better): value <= t[0] → labels[0], ..., else labels[-1]
+    reverse=True  (higher-is-better): value >= t[-1] → labels[-1], ..., else labels[0]
+    """
+    if not reverse:
+        for threshold, label in zip(thresholds, labels[:-1]):
+            if value <= threshold:
+                return label
+        return labels[-1]
+    else:
+        # Walk thresholds from highest to lowest
+        for threshold, label in zip(reversed(thresholds), reversed(labels[1:])):
+            if value >= threshold:
+                return label
+        return labels[0]
 
 
 # ── 1. Safety: IoU Loss ───────────────────────────────────────────────────────
@@ -167,13 +177,19 @@ def _load_feature_extractor():
 
 
 def measure_inference_time(mod, n_runs=50):
-    """Time _predict_face() on saved face images."""
-    person_dir = FACES_DIR / "seb"
+    """Time _extract_face_features() on saved face images. mod can be yolov10 module."""
+    # Find any person directory with face images
+    person_dir = None
+    if FACES_DIR.exists():
+        for d in sorted(FACES_DIR.iterdir()):
+            if d.is_dir() and not d.name.startswith("_"):
+                person_dir = d
+                break
     images = [
         p for p in person_dir.iterdir()
         if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
         and "_aug_" not in p.stem
-    ] if person_dir.exists() else []
+    ] if person_dir and person_dir.exists() else []
 
     if not images:
         return None, None, "no face images found"
@@ -183,11 +199,17 @@ def measure_inference_time(mod, n_runs=50):
     if not grays:
         return None, None, "could not load images"
 
+    # _extract_face_features now requires an eye_detector parameter after refactor
+    eye_detector = mod._load_eye_detector() if hasattr(mod, "_load_eye_detector") else None
+
     times = []
     for _ in range(n_runs):
         img = grays[_ % len(grays)]
         t0 = time.perf_counter()
-        mod._extract_face_features(img)
+        if eye_detector is not None:
+            mod._extract_face_features(img, eye_detector)
+        else:
+            mod._extract_face_features(img)
         times.append((time.perf_counter() - t0) * 1000)
 
     return statistics.mean(times), statistics.stdev(times), f"{n_runs} runs"
@@ -196,7 +218,7 @@ def measure_inference_time(mod, n_runs=50):
 # ── 3. Manufacturability: Training Time ───────────────────────────────────────
 
 def measure_training_time(mod):
-    """Delete trainer.npz, re-run train_faces(), measure wall time."""
+    """Delete trainer.npz, re-run train_faces(), measure wall time. mod can be yolov10 module."""
     backup = None
     if TRAINER_FILE.exists():
         backup = TRAINER_FILE.with_suffix(".npz.bak")
@@ -225,63 +247,93 @@ def measure_training_time(mod):
 # ── 4. Maintainability: Maintainability Index ─────────────────────────────────
 
 def measure_maintainability():
-    """Use radon MI if available, else fallback to simple LOC-based metric."""
+    """Score yolov10.py, face_features.py, and face_camera.py; return weighted average."""
+    target_files = [
+        ROOT / "yolov10.py",
+        ROOT / "face_features.py",
+        ROOT / "face_camera.py",
+    ]
+    existing = [f for f in target_files if f.exists()]
+    if not existing:
+        return 0.0, "no source files found"
+
+    scores = []
+
     try:
         import radon.metrics as rm
-        source = YOLO_FILE.read_text(encoding="utf-8")
-        mi_score = rm.mi_visit(source, multi=True)
-        return round(mi_score, 2), "radon MI (0-100, >65 = A)"
+        for f in existing:
+            source = f.read_text(encoding="utf-8")
+            scores.append(rm.mi_visit(source, multi=True))
+        avg = sum(scores) / len(scores)
+        names = ", ".join(f.name for f in existing)
+        return round(avg, 2), f"radon MI avg over {names}"
     except ImportError:
         pass
 
-    # Fallback: run `radon mi -s yolov10.py` as subprocess
+    # Fallback: radon subprocess for each file
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "radon", "mi", "-s", str(YOLO_FILE)],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode == 0:
-            # parse "yolov10.py - A (82.34)"
-            for line in result.stdout.splitlines():
-                if "(" in line and ")" in line:
-                    score_str = line.split("(")[-1].rstrip(")")
-                    try:
-                        return float(score_str), "radon MI (0-100, >65 = A)"
-                    except ValueError:
-                        pass
+        for f in existing:
+            result = subprocess.run(
+                [sys.executable, "-m", "radon", "mi", "-s", str(f)],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if "(" in line and ")" in line:
+                        score_str = line.split("(")[-1].rstrip(")")
+                        try:
+                            scores.append(float(score_str))
+                        except ValueError:
+                            pass
+        if scores:
+            avg = sum(scores) / len(scores)
+            return round(avg, 2), "radon MI (subprocess)"
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # Final fallback: count cyclomatic complexity via ast
+    # Final fallback: AST approximation across all files
     import ast
-    source = YOLO_FILE.read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    functions = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
-    total_lines = len(source.splitlines())
-    # Halstead-inspired approximation (not true MI, but directional)
-    avg_func_len = total_lines / max(len(functions), 1)
-    mi_approx = max(0, min(100, 171 - 5.2 * np.log(max(1, avg_func_len))
-                           - 0.23 * len(functions) - 16.2 * np.log(max(1, total_lines))))
-    return round(float(mi_approx), 2), "estimated MI (radon not installed)"
+    for f in existing:
+        source = f.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        functions = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+        total_lines = len(source.splitlines())
+        avg_func_len = total_lines / max(len(functions), 1)
+        mi_approx = max(0, min(100, 171 - 5.2 * np.log(max(1, avg_func_len))
+                               - 0.23 * len(functions) - 16.2 * np.log(max(1, total_lines))))
+        scores.append(mi_approx)
+    avg = sum(scores) / len(scores)
+    return round(float(avg), 2), "estimated MI (radon not installed)"
 
 
 # ── 5. Reliability: Model Consistency ────────────────────────────────────────
 
 def measure_reliability(mod):
-    """Predict on held-out augmented faces, report recognition accuracy."""
-    person_dir = FACES_DIR / "seb"
-    if not person_dir.exists():
-        return None, None, "no face data"
+    """Predict on held-out augmented faces for all enrolled persons, report accuracy."""
+    if not FACES_DIR.exists():
+        return None, None, "no faces directory"
 
-    # Use aug images as held-out test set (not used during training)
-    aug_images = [
-        p for p in person_dir.iterdir()
-        if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
-        and "_aug_" in p.stem
-    ]
+    _IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    _SKIP_SUFFIXES = ("_temp", "_capture_temp")
 
-    if not aug_images:
-        return None, None, "no augmented images"
+    # Collect (expected_name, image_path) for augmented images across all persons
+    test_items = []
+    for person_path in sorted(FACES_DIR.iterdir()):
+        if not person_path.is_dir():
+            continue
+        if any(person_path.name.endswith(s) for s in _SKIP_SUFFIXES):
+            continue
+        aug_images = [
+            p for p in person_path.iterdir()
+            if p.is_file()
+            and p.suffix.lower() in _IMG_EXTS
+            and "_aug_" in p.stem
+        ]
+        for img_path in aug_images:
+            test_items.append((person_path.name.lower(), img_path))
+
+    if not test_items:
+        return None, None, "no augmented images found"
 
     if not mod.faces_ready():
         return None, None, "model not trained"
@@ -289,16 +341,16 @@ def measure_reliability(mod):
     correct = 0
     confidences = []
 
-    for img_path in aug_images:
+    for expected_name, img_path in test_items:
         gray = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
         if gray is None:
             continue
         name, conf = mod._predict_face(gray)
         confidences.append(conf)
-        if name.lower() == "seb":
+        if name.lower() == expected_name:
             correct += 1
 
-    total = len(aug_images)
+    total = len(test_items)
     accuracy = correct / total if total else 0.0
     conf_std = statistics.stdev(confidences) if len(confidences) > 1 else 0.0
 
@@ -306,6 +358,132 @@ def measure_reliability(mod):
 
 
 # ── Report ────────────────────────────────────────────────────────────────────
+
+def run_evaluation(model_name=None):
+    """
+    Run all 5 metrics and return a structured dict suitable for JSON serialisation.
+    If model_name is given, temporarily activates it for YOLO-specific tests.
+    Pipeline metrics (feature extraction, training, maintainability) are model-independent.
+    """
+    import yolov10 as face_module
+
+    # Temporarily switch model if requested
+    original_model = face_module.get_active_model_name()
+    switched = False
+    if model_name and model_name != original_model:
+        try:
+            face_module.set_active_model_name(model_name)
+            switched = True
+        except ValueError as e:
+            return {"ok": False, "error": str(e)}
+
+    try:
+        results = {}
+
+        # 1. Safety – IoU Loss
+        iou_loss, iou_note = measure_iou_loss()
+        if iou_loss is not None:
+            rating = _rating(iou_loss, [0.10, 0.25, 0.40], ["Excellent", "Good", "Fair", "Poor"])
+            score = max(0, round((1 - iou_loss) * 100, 1))
+        else:
+            rating = "N/A"
+            score = None
+        results["safety"] = {
+            "title": "Safety",
+            "subtitle": "IoU Loss",
+            "value": round(iou_loss, 4) if iou_loss is not None else None,
+            "display": f"{iou_loss:.4f}" if iou_loss is not None else "N/A",
+            "score": score,
+            "rating": rating,
+            "note": iou_note,
+            "description": "Detection stability across brightness/blur augmentations. Lower = safer.",
+            "thresholds": "Excellent <0.10 · Good <0.25 · Fair <0.40",
+        }
+
+        # 2. Performance – Inference Time (feature extraction pipeline)
+        mean_t, std_t, perf_note = measure_inference_time(face_module, n_runs=50)
+        if mean_t is not None:
+            rating = _rating(mean_t, [5, 15, 40], ["Excellent", "Good", "Fair", "Poor"])
+            score = max(0, round(max(0, 100 - mean_t * 2), 1))
+        else:
+            rating = "N/A"
+            score = None
+        results["performance"] = {
+            "title": "Performance",
+            "subtitle": "Inference Time",
+            "value": round(mean_t, 3) if mean_t is not None else None,
+            "display": f"{mean_t:.3f} ms ±{std_t:.3f}" if mean_t is not None else "N/A",
+            "score": score,
+            "rating": rating,
+            "note": perf_note,
+            "description": "Mean feature-extraction latency per face crop.",
+            "thresholds": "Excellent <5ms · Good <15ms · Fair <40ms",
+        }
+
+        # 3. Manufacturability – Training Time
+        elapsed = measure_training_time(face_module)
+        rating = _rating(elapsed, [5, 20, 60], ["Excellent", "Good", "Fair", "Poor"])
+        score = max(0, round(max(0, 100 - elapsed * 1.5), 1))
+        results["manufacturability"] = {
+            "title": "Manufacturability",
+            "subtitle": "Training Time",
+            "value": round(elapsed, 2),
+            "display": f"{elapsed:.2f} s",
+            "score": score,
+            "rating": rating,
+            "note": "full retrain from saved face images",
+            "description": "Time to retrain the recognition model from scratch.",
+            "thresholds": "Excellent <5s · Good <20s · Fair <60s",
+        }
+
+        # 4. Maintainability – MI Score
+        mi, mi_note = measure_maintainability()
+        rating = _rating(mi, [65, 85, 95], ["Poor", "Fair", "Good", "Excellent"], reverse=True)
+        score = round(mi, 1)
+        results["maintainability"] = {
+            "title": "Maintainability",
+            "subtitle": "Maintainability Index",
+            "value": round(mi, 2),
+            "display": f"{mi:.2f} / 100",
+            "score": score,
+            "rating": rating,
+            "note": mi_note,
+            "description": "Code quality score across yolov10.py, face_features.py, face_camera.py.",
+            "thresholds": "Excellent ≥95 · Good ≥85 · Fair ≥65",
+        }
+
+        # 5. Reliability – Recognition Accuracy
+        accuracy, conf_std, rel_note = measure_reliability(face_module)
+        if accuracy is not None:
+            rating = _rating(accuracy, [0.70, 0.85, 0.95],
+                             ["Poor", "Fair", "Good", "Excellent"], reverse=True)
+            score = round(accuracy * 100, 1)
+        else:
+            rating = "N/A"
+            score = None
+        results["reliability"] = {
+            "title": "Reliability",
+            "subtitle": "Model Consistency",
+            "value": round(accuracy * 100, 1) if accuracy is not None else None,
+            "display": f"{accuracy * 100:.1f}%" if accuracy is not None else "N/A",
+            "score": score,
+            "rating": rating,
+            "note": rel_note,
+            "description": "Recognition accuracy on held-out augmented face crops.",
+            "thresholds": "Excellent ≥95% · Good ≥85% · Fair ≥70%",
+        }
+
+        active_model = model_name or original_model
+        return {
+            "ok": True,
+            "model_name": active_model,
+            "metrics": results,
+        }
+
+    finally:
+        if switched:
+            face_module.set_active_model_name(original_model)
+
 
 def main():
     print("\n" + "═" * 60)

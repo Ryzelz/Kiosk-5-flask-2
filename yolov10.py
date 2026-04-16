@@ -12,6 +12,10 @@ from website.face_profiles import (
     get_face_profile_dir,
     list_saved_face_images,
 )
+from face_features import (
+    _get_clahe, _compute_lbp, _align_face, _prepare_face,
+    _extract_face_features, augment_face, FEATURE_DIM, _GRID, _HIST_BINS,
+)
 
 
 BASE_DIR = PROJECT_DIR
@@ -46,10 +50,6 @@ AVAILABLE_MODELS = {
 
 FACES_DIR.mkdir(exist_ok=True)
 
-_GRID = 4
-_HIST_BINS = 64
-FEATURE_DIM = _GRID * _GRID * _HIST_BINS  # 1024
-
 _model = None
 _loaded_model_name = None
 _active_model_name = None
@@ -57,7 +57,6 @@ _face_detector = None
 _eye_detector = None
 _recognizer = None
 _label_map = {}
-_clahe = None
 
 
 # ── model config ──────────────────────────────────────────────────────────────
@@ -178,6 +177,25 @@ def _load_label_map(force_reload=False):
     return _label_map
 
 
+def _current_face_person_names():
+    """Return a sorted tuple of person directory names (excluding temp dirs)."""
+    _SKIP_SUFFIXES = ("_temp", "_capture_temp")
+    _IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    names = []
+    for p in FACES_DIR.iterdir():
+        if not p.is_dir():
+            continue
+        if any(p.name.endswith(s) for s in _SKIP_SUFFIXES):
+            continue
+        has_images = any(
+            f.is_file() and f.suffix.lower() in _IMG_EXTS
+            for f in p.iterdir()
+        )
+        if has_images:
+            names.append(p.name)
+    return tuple(sorted(names))
+
+
 def _load_recognizer(force_reload=False):
     global _recognizer
 
@@ -190,12 +208,24 @@ def _load_recognizer(force_reload=False):
         if TRAINER_FILE.exists():
             training_data = np.load(str(TRAINER_FILE), allow_pickle=False)
             features = training_data["features"]
+
             # Auto-retrain when feature dimensions changed (extractor upgrade)
             if features.size > 0 and features.shape[1] != FEATURE_DIM:
                 print(f"[face] Feature dim changed ({features.shape[1]} → {FEATURE_DIM}), retraining...")
                 TRAINER_FILE.unlink()
                 train_faces()
                 return _recognizer
+
+            # Auto-retrain when new people were added (or people removed)
+            label_map = _load_label_map()
+            trained_names = tuple(sorted(label_map.values()))
+            current_names = _current_face_person_names()
+            if trained_names != current_names:
+                print(f"[face] Face roster changed {trained_names} → {current_names}, retraining...")
+                TRAINER_FILE.unlink()
+                train_faces()
+                return _recognizer
+
             _recognizer = {
                 "features": features,
                 "labels": training_data["labels"]
@@ -215,100 +245,6 @@ def faces_ready():
     return bool(label_map) and recognizer["features"].size > 0
 
 
-def _get_clahe():
-    global _clahe
-    if _clahe is None:
-        _clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    return _clahe
-
-
-def _compute_lbp(gray):
-    """Compute LBP code image using vectorised 8-neighbor circular pattern."""
-    h, w = gray.shape
-    p = np.pad(gray.astype(np.int32), 1, mode='edge')
-    center = p[1:h + 1, 1:w + 1]
-    neighbors = [
-        p[0:h,     0:w],      # (-1,-1)
-        p[0:h,     1:w + 1],  # (-1, 0)
-        p[0:h,     2:w + 2],  # (-1,+1)
-        p[1:h + 1, 2:w + 2],  # ( 0,+1)
-        p[2:h + 2, 2:w + 2],  # (+1,+1)
-        p[2:h + 2, 1:w + 1],  # (+1, 0)
-        p[2:h + 2, 0:w],      # (+1,-1)
-        p[1:h + 1, 0:w],      # ( 0,-1)
-    ]
-    lbp = np.zeros((h, w), dtype=np.uint8)
-    for k, n in enumerate(neighbors):
-        lbp += (n >= center).astype(np.uint8) * (1 << k)
-    return lbp
-
-
-def _align_face(gray_face):
-    """Rotate face image so detected eyes are level; skip if alignment is ambiguous."""
-    eye_detector = _load_eye_detector()
-    h, w = gray_face.shape[:2]
-
-    # Only search upper half of face for eyes
-    upper = gray_face[:h // 2, :]
-    eyes = eye_detector.detectMultiScale(upper, 1.05, 3, minSize=(8, 8))
-
-    if len(eyes) < 2:
-        return gray_face
-
-    eyes = sorted(eyes, key=lambda e: e[0])[:2]
-    (x1, y1, w1, h1), (x2, y2, w2, h2) = eyes[0], eyes[1]
-    cx1, cy1 = x1 + w1 // 2, y1 + h1 // 2
-    cx2, cy2 = x2 + w2 // 2, y2 + h2 // 2
-
-    # Reject if eyes are at very different heights or implausible separation
-    if abs(cy1 - cy2) > h * 0.15:
-        return gray_face
-    separation = abs(cx2 - cx1)
-    if separation < w * 0.15 or separation > w * 0.70:
-        return gray_face
-
-    angle = np.degrees(np.arctan2(cy2 - cy1, cx2 - cx1))
-    if abs(angle) > 20:
-        return gray_face
-
-    M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
-    return cv2.warpAffine(gray_face, M, (w, h),
-                          flags=cv2.INTER_LINEAR,
-                          borderMode=cv2.BORDER_REPLICATE)
-
-
-def _prepare_face(face):
-    resized = cv2.resize(face, (96, 96))
-    aligned = _align_face(resized)
-    enhanced = _get_clahe().apply(aligned)
-    return enhanced
-
-
-def _extract_face_features(face):
-    """Extract grid-based LBP histogram feature vector from a grayscale face crop."""
-    prepared = _prepare_face(face)
-    lbp = _compute_lbp(prepared)
-
-    cell_h = prepared.shape[0] // _GRID
-    cell_w = prepared.shape[1] // _GRID
-    features = []
-    for gy in range(_GRID):
-        for gx in range(_GRID):
-            cell = lbp[gy * cell_h:(gy + 1) * cell_h, gx * cell_w:(gx + 1) * cell_w]
-            hist = cv2.calcHist([cell], [0], None, [_HIST_BINS], [0, 256])
-            hist = hist.flatten().astype(np.float32)
-            s = float(hist.sum())
-            if s > 0:
-                hist /= s
-            features.append(hist)
-
-    feature = np.concatenate(features).astype(np.float32)
-    norm = float(np.linalg.norm(feature))
-    if norm > 0:
-        feature /= norm
-    return feature
-
-
 def _predict_face(face_img):
     recognizer = _load_recognizer()
     label_map = _load_label_map()
@@ -316,7 +252,7 @@ def _predict_face(face_img):
     if recognizer["features"].size == 0 or not label_map:
         return "Unknown", 0.0
 
-    query_feature = _extract_face_features(face_img)
+    query_feature = _extract_face_features(face_img, _load_eye_detector())
     similarities = recognizer["features"] @ query_feature
     labels = recognizer["labels"]
 
@@ -344,51 +280,6 @@ def _predict_face(face_img):
     return "Unknown", max(0.0, best_similarity) * 100
 
 
-def augment_face(face):
-    augmented = []
-
-    h, w = face.shape
-
-    low_brightness = cv2.convertScaleAbs(face, alpha=0.7, beta=-30)
-    high_brightness = cv2.convertScaleAbs(face, alpha=1.3, beta=30)
-    zoom_in = cv2.resize(face[int(h * 0.1):int(h * 0.9), int(w * 0.1):int(w * 0.9)], (w, h))
-
-    zoom_out = cv2.resize(face, None, fx=0.8, fy=0.8)
-    zoom_out = cv2.copyMakeBorder(
-        zoom_out,
-        (h - zoom_out.shape[0]) // 2,
-        (h - zoom_out.shape[0]) // 2,
-        (w - zoom_out.shape[1]) // 2,
-        (w - zoom_out.shape[1]) // 2,
-        cv2.BORDER_CONSTANT
-    )
-
-    move_left = cv2.warpAffine(face, np.float32([[1, 0, -10], [0, 1, 0]]), (w, h))
-    move_right = cv2.warpAffine(face, np.float32([[1, 0, 10], [0, 1, 0]]), (w, h))
-    move_up = cv2.warpAffine(face, np.float32([[1, 0, 0], [0, 1, -10]]), (w, h))
-    move_down = cv2.warpAffine(face, np.float32([[1, 0, 0], [0, 1, 10]]), (w, h))
-
-    rot_r = cv2.warpAffine(face, cv2.getRotationMatrix2D((w // 2, h // 2), 10, 1), (w, h))
-    rot_l = cv2.warpAffine(face, cv2.getRotationMatrix2D((w // 2, h // 2), -10, 1), (w, h))
-    flip = cv2.flip(face, 1)
-
-    augmented.extend([
-        low_brightness,
-        high_brightness,
-        zoom_in,
-        zoom_out,
-        move_left,
-        move_right,
-        move_up,
-        move_down,
-        rot_r,
-        rot_l,
-        flip
-    ])
-
-    return augmented
-
-
 def train_faces():
     global _recognizer
 
@@ -398,8 +289,14 @@ def train_faces():
     label_ids = {}
     current_id = 0
 
-    for person_path in FACES_DIR.iterdir():
+    _IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+    for person_path in sorted(FACES_DIR.iterdir()):
         if not person_path.is_dir():
+            continue
+
+        # Skip temporary capture directories
+        if person_path.name.endswith("_temp") or person_path.name.endswith("_capture_temp"):
             continue
 
         if person_path.name not in label_ids:
@@ -407,15 +304,27 @@ def train_faces():
             current_id += 1
 
         label_id = label_ids[person_path.name]
+        loaded = 0
 
         for image_path in person_path.iterdir():
-            gray = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
-
-            if gray is None:
+            if not image_path.is_file():
+                continue
+            if image_path.suffix.lower() not in _IMG_EXTS:
                 continue
 
-            features.append(_extract_face_features(gray))
+            gray = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+
+            if gray is None or gray.size == 0:
+                continue
+
+            features.append(_extract_face_features(gray, _load_eye_detector()))
             labels.append(label_id)
+            loaded += 1
+
+        if loaded == 0:
+            # Person directory has no usable images — remove from label map
+            del label_ids[person_path.name]
+            current_id -= 1
 
     if not features:
         if TRAINER_FILE.exists():
@@ -444,8 +353,9 @@ def train_faces():
     _load_label_map(force_reload=True)
 
     training_time = time.time() - start_time
-    print("Training complete")
-    print(f"Training time: {training_time:.2f} seconds")
+    n_people = len(label_ids)
+    n_samples = len(features)
+    print(f"Training complete: {n_people} people, {n_samples} samples in {training_time:.2f}s")
 
 
 def _detect_face(frame):
@@ -649,10 +559,11 @@ def reset_training_capture(profile_name):
 
 
 def recognize_face_from_frame_data(frame_data, expected_name=None):
-    if not MODEL_PATH.exists():
+    model_file = BASE_DIR / AVAILABLE_MODELS[get_active_model_name()]["file"]
+    if not model_file.exists():
         return {
             "ok": False,
-            "message": f"YOLO model not found at {MODEL_PATH}."
+            "message": f"YOLO model not found: {model_file.name}."
         }
 
     if not faces_ready():
@@ -691,202 +602,7 @@ def recognize_face_from_frame_data(frame_data, expected_name=None):
     }
 
 
-def capture_face_training(profile_name, camera_index=0):
-    if not MODEL_PATH.exists():
-        return 0, f"YOLO model not found at {MODEL_PATH}."
-
-    _load_model()
-    _load_face_detector()
-    _load_eye_detector()
-
-    cap = cv2.VideoCapture(camera_index)
-
-    if not cap.isOpened():
-        return 0, "Could not access the kiosk camera."
-
-    face_dir = get_face_profile_dir(profile_name)
-    temp_dir = face_dir.parent / f"{face_dir.name}_capture_temp"
-
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir)
-
-    temp_dir.mkdir(parents=True, exist_ok=True)
-
-    stages = [
-        {"name": "front", "label": "Look straight", "captures": 5, "blink_required": False},
-        {"name": "left", "label": "Face left", "captures": 4, "blink_required": False},
-        {"name": "right", "label": "Face right", "captures": 4, "blink_required": False},
-        {"name": "blink", "label": "Blink", "captures": 3, "blink_required": True},
-    ]
-
-    stage_index = 0
-    stage_started = False
-    stage_capture_count = 0
-    total_capture_count = 0
-    last_capture_time = 0.0
-    window_name = "Wideye Face Training"
-
-    try:
-        while stage_index < len(stages):
-            ret, frame = cap.read()
-
-            if not ret:
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                return 0, "Could not read a frame from the kiosk camera."
-
-            stage = stages[stage_index]
-            annotated_frame, face_img, eye_count, _ = _detect_face(frame)
-
-            cv2.putText(
-                annotated_frame,
-                f"Step {stage_index + 1}/{len(stages)}: {stage['label']}",
-                (20, 30),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (255, 255, 255),
-                2
-            )
-            cv2.putText(
-                annotated_frame,
-                "Press Enter to start this step. Press ESC to cancel.",
-                (20, 65),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (255, 255, 255),
-                2
-            )
-            cv2.putText(
-                annotated_frame,
-                f"Captured {stage_capture_count}/{stage['captures']} for this step",
-                (20, 100),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (0, 255, 0),
-                2
-            )
-
-            if stage["blink_required"]:
-                blink_text = "Blink detected" if eye_count == 0 and face_img is not None else "Blink and keep both eyes closed briefly"
-                cv2.putText(
-                    annotated_frame,
-                    blink_text,
-                    (20, 135),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.65,
-                    (0, 255, 0) if "detected" in blink_text else (0, 191, 255),
-                    2
-                )
-
-            if stage_started and face_img is not None and time.time() - last_capture_time >= 0.7:
-                if not stage["blink_required"] or eye_count == 0:
-                    stage_capture_count += 1
-                    total_capture_count += 1
-                    _save_face_sample(temp_dir, stage["name"], stage_capture_count, face_img)
-                    last_capture_time = time.time()
-
-                    if stage_capture_count >= stage["captures"]:
-                        stage_index += 1
-                        stage_started = False
-                        stage_capture_count = 0
-                        last_capture_time = 0.0
-
-            cv2.imshow(window_name, annotated_frame)
-            key = cv2.waitKey(1) & 0xFF
-
-            if key in (10, 13):
-                stage_started = True
-
-            if key == 27:
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                return 0, "Face training was canceled."
-
-        if face_dir.exists():
-            shutil.rmtree(face_dir)
-
-        temp_dir.replace(face_dir)
-        train_faces()
-        original_count = len(list_saved_face_images(profile_name))
-        return original_count, f"Saved {original_count} face samples and retrained your usual-order profile."
-    finally:
-        cap.release()
-        cv2.destroyAllWindows()
-        if temp_dir.exists():
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-def confirm_known_face(expected_name=None, camera_index=0):
-    if not MODEL_PATH.exists():
-        return None, f"YOLO model not found at {MODEL_PATH}."
-
-    if not faces_ready():
-        return None, "No trained face profiles are available yet."
-
-    cap = cv2.VideoCapture(camera_index)
-
-    if not cap.isOpened():
-        return None, "Could not access the kiosk camera."
-
-    window_name = "Wideye Usual Order"
-    expected_label = expected_name.strip().lower() if expected_name else None
-
-    try:
-        while True:
-            ret, frame = cap.read()
-
-            if not ret:
-                return None, "Could not read a frame from the kiosk camera."
-
-            annotated_frame, detected_name = _scan_frame(frame)
-
-            cv2.putText(
-                annotated_frame,
-                "Press Y to confirm your face or ESC to cancel",
-                (20, 30),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (255, 255, 255),
-                2
-            )
-
-            if expected_name:
-                cv2.putText(
-                    annotated_frame,
-                    f"Expected profile: {expected_name}",
-                    (20, 65),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.65,
-                    (255, 255, 255),
-                    2
-                )
-
-            if detected_name != "Unknown":
-                cv2.putText(
-                    annotated_frame,
-                    f"Recognized: {detected_name}",
-                    (20, 100),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 0),
-                    2
-                )
-
-            cv2.imshow(window_name, annotated_frame)
-            key = cv2.waitKey(1) & 0xFF
-
-            if key == ord("y"):
-                if detected_name == "Unknown":
-                    return None, "No known face was recognized to confirm."
-
-                if expected_label and detected_name.lower() != expected_label:
-                    return None, f"Detected {detected_name}, which does not match {expected_name}."
-
-                return detected_name, f"Confirmed {detected_name}."
-
-            if key == 27:
-                return None, "Facial confirmation was canceled."
-    finally:
-        cap.release()
-        cv2.destroyAllWindows()
+from face_camera import capture_face_training, confirm_known_face  # noqa: E402, F401
 
 
 if __name__ == "__main__":

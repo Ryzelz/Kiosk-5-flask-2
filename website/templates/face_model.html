@@ -30,126 +30,141 @@
             position: relative;
         }
 
-        .fm-card:hover {
-            border-color: rgba(255, 191, 47, 0.5);
-            transform: translateY(-3px);
-        }
+        .fm-card:hover { border-color: rgba(255,191,47,0.5); transform: translateY(-3px); }
+        .fm-card.fm-active { border-color: #ffbf2f; background: #161f33; }
+        .fm-card.fm-evaluating { border-color: #38bdf8; animation: fm-pulse 1.4s ease-in-out infinite; }
+        @keyframes fm-pulse { 0%,100%{border-color:#38bdf8;} 50%{border-color:rgba(56,189,248,0.3);} }
 
-        .fm-card.fm-active {
-            border-color: #ffbf2f;
-            background: #161f33;
-        }
-
-        .fm-card input[type="radio"] {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .fm-card input[type="radio"] { position:absolute; opacity:0; width:0; height:0; }
 
         .fm-radio-ring {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.25);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            transition: border-color 0.2s;
+            width: 20px; height: 20px; border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.25);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; transition: border-color 0.2s;
         }
+        .fm-card.fm-active .fm-radio-ring { border-color: #ffbf2f; }
+        .fm-radio-dot { width:10px; height:10px; border-radius:50%; background:#ffbf2f; display:none; }
+        .fm-card.fm-active .fm-radio-dot { display:block; }
 
-        .fm-card.fm-active .fm-radio-ring {
-            border-color: #ffbf2f;
-        }
+        .fm-badge { font-size:0.7rem; font-weight:700; padding:2px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:0.05em; }
+        .fm-badge-stable  { background:rgba(56,189,248,0.15);  color:#38bdf8; }
+        .fm-badge-default { background:rgba(255,191,47,0.15);  color:#ffbf2f; }
+        .fm-badge-latest  { background:rgba(52,211,153,0.15);  color:#34d399; }
 
-        .fm-radio-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #ffbf2f;
-            display: none;
-        }
-
-        .fm-card.fm-active .fm-radio-dot {
-            display: block;
-        }
-
-        .fm-badge {
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 2px 9px;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .fm-badge-stable  { background: rgba(56,189,248,0.15); color: #38bdf8; }
-        .fm-badge-default { background: rgba(255,191,47,0.15);  color: #ffbf2f; }
-        .fm-badge-latest  { background: rgba(52,211,153,0.15);  color: #34d399; }
-
-        .fm-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #fff;
-            margin: 0 0 4px;
-        }
-
-        .fm-desc {
-            font-size: 0.84rem;
-            color: #94a2bc;
-            margin: 0 0 14px;
-        }
-
-        .fm-meta {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.8rem;
-        }
-
-        .fm-size {
-            color: #64748b;
-        }
-
-        .fm-dl-badge {
-            font-size: 0.74rem;
-            padding: 2px 8px;
-            border-radius: 20px;
-        }
-
-        .fm-dl-yes { background: rgba(52,211,153,0.12); color: #34d399; }
-        .fm-dl-no  { background: rgba(148,162,188,0.12); color: #94a2bc; }
+        .fm-title { font-size:1.1rem; font-weight:700; color:#fff; margin:0 0 4px; }
+        .fm-desc  { font-size:0.84rem; color:#94a2bc; margin:0 0 14px; }
+        .fm-meta  { display:flex; align-items:center; gap:10px; font-size:0.8rem; }
+        .fm-size  { color:#64748b; }
+        .fm-dl-badge { font-size:0.74rem; padding:2px 8px; border-radius:20px; }
+        .fm-dl-yes { background:rgba(52,211,153,0.12); color:#34d399; }
+        .fm-dl-no  { background:rgba(148,162,188,0.12); color:#94a2bc; }
 
         .fm-active-label {
-            position: absolute;
-            top: 14px;
-            right: 14px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #ffbf2f;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
+            position:absolute; top:14px; right:14px;
+            font-size:0.72rem; font-weight:700; color:#ffbf2f;
+            text-transform:uppercase; letter-spacing:0.06em;
         }
+
+        .fm-eval-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 14px; padding: 6px 14px;
+            background: rgba(56,189,248,0.12); color: #38bdf8;
+            border: 1px solid rgba(56,189,248,0.25); border-radius: 10px;
+            font-size: 0.82rem; font-weight: 600; cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .fm-eval-btn:hover { background:rgba(56,189,248,0.2); border-color:rgba(56,189,248,0.5); }
+        .fm-eval-btn:disabled { opacity:0.5; cursor:not-allowed; }
 
         .fm-note {
-            background: #121a29;
+            background:#121a29; border:1px solid rgba(255,255,255,0.08);
+            border-left:3px solid #38bdf8; border-radius:10px;
+            padding:14px 18px; font-size:0.84rem; color:#94a2bc; margin-top:24px;
+        }
+        .fm-note strong { color:#fff; }
+
+        /* ── Evaluation results panel ── */
+        #fm-eval-panel {
+            display: none;
+            margin-top: 28px;
+            background: #0e1624;
             border: 1px solid rgba(255,255,255,0.08);
-            border-left: 3px solid #38bdf8;
-            border-radius: 10px;
-            padding: 14px 18px;
-            font-size: 0.84rem;
-            color: #94a2bc;
-            margin-top: 24px;
+            border-radius: 18px;
+            padding: 24px;
         }
 
-        .fm-note strong { color: #fff; }
+        .fm-eval-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+        }
+
+        .fm-eval-title { font-size: 1rem; font-weight: 700; color: #fff; }
+        .fm-eval-model { font-size: 0.8rem; color: #94a2bc; }
+
+        .fm-metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+        }
+
+        .fm-metric-card {
+            background: #121a29;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .fm-metric-head {
+            display: flex; align-items: flex-start;
+            justify-content: space-between; margin-bottom: 10px;
+            gap: 8px;
+        }
+
+        .fm-metric-head > div { min-width: 0; }
+
+        .fm-metric-title { font-size: 0.78rem; color: #94a2bc; text-transform: uppercase; letter-spacing: 0.05em; word-break: break-word; }
+        .fm-metric-sub   { font-size: 0.72rem; color: #64748b; margin-top: 1px; }
+        .fm-metric-value { font-size: 1.3rem; font-weight: 800; color: #fff; margin: 4px 0 8px; }
+        .fm-metric-note  { font-size: 0.74rem; color: #64748b; }
+
+        .fm-rating {
+            display: inline-block; font-size: 0.7rem; font-weight: 700;
+            padding: 2px 8px; border-radius: 20px; text-transform: uppercase;
+            flex-shrink: 0; white-space: nowrap; align-self: flex-start;
+        }
+        .fm-rating-excellent { background:rgba(52,211,153,0.15);  color:#34d399; }
+        .fm-rating-good      { background:rgba(56,189,248,0.15);  color:#38bdf8; }
+        .fm-rating-fair      { background:rgba(255,191,47,0.15);  color:#ffbf2f; }
+        .fm-rating-poor      { background:rgba(255,99,99,0.15);   color:#ff6363; }
+        .fm-rating-na        { background:rgba(148,162,188,0.12); color:#94a2bc; }
+
+        .fm-bar-track {
+            height: 6px; background: rgba(255,255,255,0.07);
+            border-radius: 4px; overflow: hidden; margin-top: 8px;
+        }
+        .fm-bar-fill {
+            height: 100%; border-radius: 4px;
+            transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        .fm-spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(56,189,248,0.3); border-top-color: #38bdf8;
+            border-radius: 50%; animation: fm-spin 0.7s linear infinite;
+        }
+        @keyframes fm-spin { to { transform: rotate(360deg); } }
+
+        .fm-eval-loading {
+            display: flex; align-items: center; gap: 12px;
+            padding: 20px 0; color: #94a2bc; font-size: 0.88rem;
+        }
     </style>
 
     <div class="fm-header">
         <div>
             <h1 class="h3 mb-1">Face Detection Model</h1>
-            <p style="color:#a8b4cc;" class="mb-0">Switch the YOLO model used for person detection.</p>
+            <p style="color:#a8b4cc;" class="mb-0">Switch and evaluate the YOLO model used for person detection.</p>
         </div>
         <a href="/admin-page" class="wideye-admin-secondary">
             <i class="bi bi-speedometer2 me-1"></i> Back to Dashboard
@@ -178,7 +193,7 @@
                     <span class="fm-active-label">✓ Active</span>
                 {% endif %}
 
-                <div class="d-flex align-items-center gap-3 mb-14" style="margin-bottom:14px;">
+                <div class="d-flex align-items-center gap-3" style="margin-bottom:14px;">
                     <div class="fm-radio-ring">
                         <div class="fm-radio-dot"></div>
                     </div>
@@ -205,11 +220,19 @@
                         <span class="fm-dl-badge fm-dl-no"><i class="bi bi-cloud-download me-1"></i>Will auto-download</span>
                     {% endif %}
                 </div>
+
+                <!-- Evaluate button — stop click from toggling the card -->
+                <button type="button"
+                        class="fm-eval-btn"
+                        data-eval-model="{{ name }}"
+                        onclick="event.stopPropagation(); event.preventDefault(); runEvaluation('{{ name }}', this)">
+                    <i class="bi bi-speedometer2"></i> Evaluate
+                </button>
             </label>
             {% endfor %}
         </div>
 
-        <div class="mt-4 d-flex gap-3 align-items-center">
+        <div class="mt-4 d-flex gap-3 align-items-center flex-wrap">
             <button type="submit"
                     id="fm-apply-btn"
                     class="wideye-admin-primary"
@@ -217,14 +240,42 @@
                     style="opacity:0.5;pointer-events:none;">
                 <i class="bi bi-cpu-fill me-2"></i>Apply Model
             </button>
+            <button type="button"
+                    id="fm-retrain-btn"
+                    class="wideye-admin-secondary"
+                    onclick="retrainModel()">
+                <i class="bi bi-arrow-repeat me-2"></i>Retrain Face Model
+            </button>
             <span id="fm-hint" style="color:#64748b;font-size:0.84rem;">Select a model above to apply</span>
         </div>
     </form>
 
+    <!-- ── Evaluation Results Panel ── -->
+    <div id="fm-eval-panel">
+        <div class="fm-eval-header">
+            <div>
+                <div class="fm-eval-title">Evaluation Results</div>
+                <div class="fm-eval-model" id="fm-eval-model-label"></div>
+            </div>
+            <button type="button"
+                    onclick="document.getElementById('fm-eval-panel').style.display='none'"
+                    style="background:none;border:none;color:#64748b;font-size:1.2rem;cursor:pointer;">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div id="fm-eval-body">
+            <div class="fm-eval-loading">
+                <div class="fm-spinner"></div>
+                <span>Running evaluation — this may take 10–30 seconds…</span>
+            </div>
+        </div>
+    </div>
+
     <div class="fm-note">
         <strong>Note:</strong> Models are downloaded automatically by Ultralytics on first use.
-        If a model is not yet downloaded, switching to it may take a moment on the next face scan.
-        The active model is used for all facial detection in the kiosk.
+        The <strong>Evaluate</strong> button runs all 5 metrics (safety, performance, manufacturability,
+        maintainability, reliability) against the selected model. Evaluation temporarily retrains
+        the feature model to measure training time — your saved faces are not affected.
     </div>
 </div>
 
@@ -234,28 +285,146 @@
     function selectModel(name) {
         document.querySelectorAll('.fm-card').forEach(card => {
             card.classList.remove('fm-active');
-            card.querySelector('.fm-active-label') && (card.querySelector('.fm-active-label').style.display = 'none');
+            const lbl = card.querySelector('.fm-active-label');
+            if (lbl) lbl.style.display = 'none';
         });
-
         const chosen = document.querySelector(`.fm-card[data-model="${name}"]`);
-        if (chosen) chosen.classList.add('fm-active');
-
+        if (chosen) {
+            chosen.classList.add('fm-active');
+            const lbl = chosen.querySelector('.fm-active-label');
+            if (lbl) lbl.style.display = '';
+        }
         document.getElementById('fm-selected').value = name;
-
         const btn = document.getElementById('fm-apply-btn');
         const hint = document.getElementById('fm-hint');
-
         if (name === activeModel) {
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            btn.style.pointerEvents = 'none';
+            btn.disabled = true; btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none';
             hint.textContent = 'This model is already active';
         } else {
+            btn.disabled = false; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
+            hint.textContent = 'Click Apply to switch to this model';
+        }
+    }
+
+    function ratingClass(rating) {
+        const map = { Excellent: 'fm-rating-excellent', Good: 'fm-rating-good',
+                      Fair: 'fm-rating-fair', Poor: 'fm-rating-poor' };
+        return map[rating] || 'fm-rating-na';
+    }
+
+    function barColor(rating) {
+        const map = { Excellent: '#34d399', Good: '#38bdf8', Fair: '#ffbf2f', Poor: '#ff6363' };
+        return map[rating] || '#475569';
+    }
+
+    function buildMetricCard(key, m) {
+        const score = m.score != null ? m.score : 0;
+        const barWidth = Math.min(100, Math.max(0, score));
+        const color = barColor(m.rating);
+        return `
+        <div class="fm-metric-card">
+            <div class="fm-metric-head">
+                <div>
+                    <div class="fm-metric-title">${m.title}</div>
+                    <div class="fm-metric-sub">${m.subtitle}</div>
+                </div>
+                <span class="fm-rating ${ratingClass(m.rating)}">${m.rating}</span>
+            </div>
+            <div class="fm-metric-value">${m.display}</div>
+            <div class="fm-metric-note">${m.description}</div>
+            <div class="fm-metric-note" style="margin-top:4px;color:#475569;">${m.thresholds}</div>
+            <div class="fm-bar-track">
+                <div class="fm-bar-fill" style="width:0%;background:${color};"
+                     data-target="${barWidth}"></div>
+            </div>
+        </div>`;
+    }
+
+    async function runEvaluation(modelName, triggerBtn) {
+        const panel = document.getElementById('fm-eval-panel');
+        const body  = document.getElementById('fm-eval-body');
+        const label = document.getElementById('fm-eval-model-label');
+
+        // Disable all eval buttons, highlight active card
+        document.querySelectorAll('.fm-eval-btn').forEach(b => b.disabled = true);
+        document.querySelectorAll('.fm-card').forEach(c => c.classList.remove('fm-evaluating'));
+        const card = triggerBtn.closest('.fm-card');
+        if (card) card.classList.add('fm-evaluating');
+
+        // Show loading state
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        label.textContent = `Evaluating: ${modelName}`;
+        body.innerHTML = `<div class="fm-eval-loading">
+            <div class="fm-spinner"></div>
+            <span>Running evaluation — this may take 10–30 seconds…</span>
+        </div>`;
+
+        try {
+            const res = await fetch('/face-model/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: modelName }),
+            });
+            const data = await res.json();
+
+            if (!data.ok) {
+                body.innerHTML = `<div style="color:#ff6363;padding:16px 0;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Evaluation failed:</strong> ${data.error || 'Unknown error'}
+                    ${data.traceback ? `<pre style="font-size:0.72rem;color:#94a2bc;margin-top:8px;white-space:pre-wrap;">${data.traceback}</pre>` : ''}
+                </div>`;
+                return;
+            }
+
+            label.textContent = `Results for: ${data.model_name}`;
+            const cards = Object.entries(data.metrics)
+                .map(([k, m]) => buildMetricCard(k, m))
+                .join('');
+            body.innerHTML = `<div class="fm-metric-grid">${cards}</div>`;
+
+            // Animate bars after render
+            requestAnimationFrame(() => {
+                document.querySelectorAll('.fm-bar-fill[data-target]').forEach(el => {
+                    const target = parseFloat(el.dataset.target);
+                    requestAnimationFrame(() => { el.style.width = target + '%'; });
+                });
+            });
+
+        } catch (err) {
+            body.innerHTML = `<div style="color:#ff6363;padding:16px 0;">
+                <i class="bi bi-wifi-off me-2"></i>Request failed: ${err.message}
+            </div>`;
+        } finally {
+            document.querySelectorAll('.fm-eval-btn').forEach(b => b.disabled = false);
+            document.querySelectorAll('.fm-card').forEach(c => c.classList.remove('fm-evaluating'));
+        }
+    }    async function retrainModel() {
+        const btn = document.getElementById('fm-retrain-btn');
+        const hint = document.getElementById('fm-hint');
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span class="fm-spinner" style="width:14px;height:14px;margin-right:8px;"></span>Retraining…';
+        hint.textContent = '';
+
+        try {
+            const res = await fetch('/face-model/retrain', { method: 'POST' });
+            const data = await res.json();
+            if (data.ok) {
+                hint.style.color = '#34d399';
+                hint.textContent = `✓ Trained ${data.people} people: ${(data.names || []).join(', ')}`;
+            } else {
+                hint.style.color = '#ff6363';
+                hint.textContent = `Retrain failed: ${data.error}`;
+            }
+        } catch (err) {
+            hint.style.color = '#ff6363';
+            hint.textContent = `Request failed: ${err.message}`;
+        } finally {
             btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.pointerEvents = 'auto';
-            hint.textContent = `Click Apply to switch to this model`;
+            btn.innerHTML = orig;
         }
     }
 </script>
 {% endblock %}
+
