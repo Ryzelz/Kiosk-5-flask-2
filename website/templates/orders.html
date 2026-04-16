@@ -6,131 +6,239 @@
 
 <style>
     .wideye-orders-shell {
-        width: min(calc(100% - 1rem), 1180px);
+        width: min(calc(100% - 1rem), 1100px);
         margin: 1.5rem auto 2rem;
     }
 
-    .wideye-orders-card {
+    .wideye-orders-header {
+        color: #fff;
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin-bottom: 1.5rem;
+    }
+
+    .wideye-order-card {
         background: #121a29;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 18px;
-        color: #f6f7fb;
+        margin-bottom: 1rem;
+        transition: border-color 0.2s;
+        overflow: hidden;
     }
 
-    .wideye-orders-card .card-body {
-        background: transparent;
-        color: inherit;
+    .wideye-order-card:hover {
+        border-color: rgba(255,255,255,0.18);
     }
 
-    .wideye-orders-card h3,
-    .wideye-orders-card p,
-    .wideye-orders-card .col-sm-4,
-    .wideye-orders-card .col-sm-7 {
-        color: #f6f7fb;
-    }
-
-    .wideye-orders-card .text-muted {
-        color: rgba(226, 232, 240, 0.78) !important;
-    }
-
-    .wideye-orders-card .progress {
-        background: rgba(255, 255, 255, 0.1);
+    .wideye-order-body {
+        padding: 1.25rem 1.4rem;
+        display: flex;
+        gap: 1.25rem;
+        align-items: flex-start;
     }
 
     .wideye-orders-thumb {
-        width: 130px;
-        height: 130px;
+        width: 100px;
+        height: 100px;
         object-fit: cover;
         border-radius: 14px;
         background: #0f172a;
+        flex-shrink: 0;
     }
 
-    @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
-        .wideye-orders-shell {
-            margin: 1rem auto 1.25rem;
-        }
+    .wideye-order-info {
+        flex: 1;
+        min-width: 0;
+    }
 
-        .wideye-orders-card {
-            border-radius: 16px;
-        }
+    .wideye-order-name {
+        color: #f6f7fb;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.3rem;
+    }
 
-        .wideye-orders-card .card-body {
-            padding: 14px;
-        }
+    .wideye-order-meta {
+        color: rgba(226,232,240,0.7);
+        font-size: 0.83rem;
+        margin-bottom: 0.2rem;
+    }
 
-        .wideye-orders-thumb {
-            width: 96px;
-            height: 96px;
-        }
+    .wideye-order-price {
+        color: #93c5fd;
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-top: 0.5rem;
+    }
+
+    /* Status badge */
+    .wideye-status-badge {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+    }
+    .wideye-status-pending   { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.4); }
+    .wideye-status-accepted  { background: rgba(14,165,233,0.2); color: #7dd3fc; border: 1px solid rgba(14,165,233,0.4); }
+    .wideye-status-delivery  { background: rgba(234,179,8,0.18); color: #fde047; border: 1px solid rgba(234,179,8,0.4); }
+    .wideye-status-delivered { background: rgba(34,197,94,0.18); color: #86efac; border: 1px solid rgba(34,197,94,0.4); }
+    .wideye-status-canceled  { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+
+    /* Progress track */
+    .wideye-order-footer {
+        padding: 0 1.4rem 1.1rem;
+    }
+
+    .wideye-progress-track {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        margin-top: 0.5rem;
+    }
+
+    .wideye-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+    }
+
+    .wideye-step-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.12);
+        border: 2px solid rgba(255,255,255,0.18);
+        z-index: 1;
+        flex-shrink: 0;
+    }
+
+    .wideye-step-dot.active   { background: #6366f1; border-color: #818cf8; }
+    .wideye-step-dot.info     { background: #0ea5e9; border-color: #38bdf8; }
+    .wideye-step-dot.warning  { background: #eab308; border-color: #facc15; }
+    .wideye-step-dot.success  { background: #22c55e; border-color: #4ade80; }
+    .wideye-step-dot.danger   { background: #ef4444; border-color: #f87171; }
+
+    .wideye-step-label {
+        font-size: 0.68rem;
+        color: rgba(226,232,240,0.5);
+        margin-top: 4px;
+        text-align: center;
+    }
+
+    .wideye-step-label.active   { color: #a5b4fc; }
+    .wideye-step-label.info     { color: #7dd3fc; }
+    .wideye-step-label.warning  { color: #fde047; }
+    .wideye-step-label.success  { color: #86efac; }
+    .wideye-step-label.danger   { color: #fca5a5; }
+
+    .wideye-step-line {
+        flex: 1;
+        height: 2px;
+        background: rgba(255,255,255,0.1);
+        align-self: flex-start;
+        margin-top: 6px;
+    }
+
+    .wideye-step-line.filled { background: rgba(99,102,241,0.5); }
+    .wideye-step-line.info   { background: rgba(14,165,233,0.5); }
+    .wideye-step-line.warning{ background: rgba(234,179,8,0.5); }
+    .wideye-step-line.success{ background: rgba(34,197,94,0.5); }
+
+    @media (max-width: 600px) {
+        .wideye-order-body { flex-direction: column; }
+        .wideye-orders-thumb { width: 80px; height: 80px; }
     }
 </style>
 
+{% macro step_class(item_status, step) %}
+    {% if item_status == 'Canceled' %}
+        {% if step == 1 %}danger{% endif %}
+    {% elif item_status == 'Pending' %}
+        {% if step == 1 %}active{% endif %}
+    {% elif item_status == 'Accepted' %}
+        {% if step <= 2 %}info{% endif %}
+    {% elif item_status == 'Out for delivery' %}
+        {% if step <= 3 %}warning{% endif %}
+    {% elif item_status == 'Delivered' %}
+        {% if step <= 4 %}success{% endif %}
+    {% endif %}
+{% endmacro %}
+
 <div class="wideye-orders-shell">
 
-    <div class="row">
-        {% if orders %}
+    {% if orders %}
+    <h1 class="wideye-orders-header text-center">Your Orders</h1>
 
-        <h1 class="text-center mb-5" style="color: white;">Orders</h1>
-        <div class="col-sm-13">
-            <div class="card wideye-orders-card">
-                <div class="card-body">
-                    <!-- <h3>Orders</h3> -->
-                    {% for item in orders %}
-
-                    <div class="row">
-                        <div class="col-sm-3 text-center align-self-center">
-                            <img src="{{ get_product_image(item.product, item.size) }}" alt="" class="img-fluid wideye-orders-thumb shadow-sm">
-                        </div>
-                        <div class="col-sm-7">
-                            
-                            <h3>{{ item.product.product_name }}</h3>
-                            <p class="mb-2 text-muted small">Quantity: {{ item.quantity }}</p>
-                            <p class="mb-2 text-muted small">{{ format_option_summary(item) }}</p>
-                            <p class="mb-2 text-muted small">Price: PhP {{ item.price }}</p>
-                               
-                                
-                            <div class="col-sm-4">
-                                <p>Order Status: {{ item.status }}</p>
-                                {% if item.status == 'Pending' %}
-                                <div class="progress">
-                                    <div class="progress-bar" role="progressbar" style="width: 20%;"  aria-valuenow="20" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-
-                                {% elif item.status == 'Accepted' %}
-                                <div class="progress">
-                                    <div class="progress-bar bg-info" role="progressbar" style="width: 40%;"  aria-valuenow="40" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-
-                                {% elif item.status == 'Out for delivery' %}
-                                <div class="progress">
-                                    <div class="progress-bar bg-warning" role="progressbar" style="width: 70%;"  aria-valuenow="70" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-
-                                {% elif item.status == 'Delivered' %}
-                                <div class="progress">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%;"  aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-
-                                {% elif item.status == 'Canceled' %}
-                                <div class="progress">
-                                    <div class="progress-bar bg-danger" role="progressbar" style="width: 100%;"  aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                                {% endif %}
-                            </div>
-                            
-                        </div>
-                    </div>
-                    <hr class="text-muted">
-                    {% endfor %}
+    {% for item in orders %}
+    {% set s = item.status %}
+    <div class="wideye-order-card">
+        <div class="wideye-order-body">
+            <img src="{{ get_product_image(item.product, item.size) }}" alt="" class="wideye-orders-thumb shadow-sm">
+            <div class="wideye-order-info">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <h4 class="wideye-order-name">{{ item.product.product_name }}</h4>
+                    <span class="wideye-status-badge
+                        {% if s == 'Pending' %}wideye-status-pending
+                        {% elif s == 'Accepted' %}wideye-status-accepted
+                        {% elif s == 'Out for delivery' %}wideye-status-delivery
+                        {% elif s == 'Delivered' %}wideye-status-delivered
+                        {% elif s == 'Canceled' %}wideye-status-canceled
+                        {% endif %}">{{ s }}</span>
                 </div>
+                <p class="wideye-order-meta mb-1">{{ format_option_summary(item) }}</p>
+                <p class="wideye-order-meta mb-0">Qty: {{ item.quantity }}</p>
+                <p class="wideye-order-price">PhP {{ item.price }}</p>
             </div>
         </div>
 
-        {% else %}
-        <h1 class="text-center mb-5" style="color: white;">You have no Orders</h1>
+        {% if s != 'Canceled' %}
+        <div class="wideye-order-footer">
+            <div class="wideye-progress-track">
+                {# Step 1: Pending #}
+                <div class="wideye-step">
+                    <div class="wideye-step-dot {% if s in ['Pending','Accepted','Out for delivery','Delivered'] %}active{% endif %}"></div>
+                    <span class="wideye-step-label {% if s in ['Pending','Accepted','Out for delivery','Delivered'] %}active{% endif %}">Pending</span>
+                </div>
+                <div class="wideye-step-line {% if s in ['Accepted','Out for delivery','Delivered'] %}filled{% endif %}"></div>
 
+                {# Step 2: Accepted #}
+                <div class="wideye-step">
+                    <div class="wideye-step-dot {% if s in ['Accepted','Out for delivery','Delivered'] %}info{% endif %}"></div>
+                    <span class="wideye-step-label {% if s in ['Accepted','Out for delivery','Delivered'] %}info{% endif %}">Accepted</span>
+                </div>
+                <div class="wideye-step-line {% if s in ['Out for delivery','Delivered'] %}info{% endif %}"></div>
+
+                {# Step 3: Out for delivery #}
+                <div class="wideye-step">
+                    <div class="wideye-step-dot {% if s in ['Out for delivery','Delivered'] %}warning{% endif %}"></div>
+                    <span class="wideye-step-label {% if s in ['Out for delivery','Delivered'] %}warning{% endif %}">Delivering</span>
+                </div>
+                <div class="wideye-step-line {% if s == 'Delivered' %}success{% endif %}"></div>
+
+                {# Step 4: Delivered #}
+                <div class="wideye-step">
+                    <div class="wideye-step-dot {% if s == 'Delivered' %}success{% endif %}"></div>
+                    <span class="wideye-step-label {% if s == 'Delivered' %}success{% endif %}">Delivered</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="wideye-order-footer">
+            <p class="wideye-order-meta mb-0" style="color:#fca5a5; font-size:0.8rem;">This order was canceled.</p>
+        </div>
         {% endif %}
     </div>
+    {% endfor %}
+
+    {% else %}
+    <h1 class="text-center mb-5" style="color: white;">You have no Orders</h1>
+    {% endif %}
 
 </div>
 

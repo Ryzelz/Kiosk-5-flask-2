@@ -26,6 +26,50 @@
 
     .wideye-cart-card .list-group-item {
         border-color: rgba(255, 255, 255, 0.08);
+        color: #f6f7fb;
+    }
+
+    .wideye-cart-card label,
+    .wideye-cart-card span,
+    .wideye-cart-card p,
+    .wideye-cart-card h3,
+    .wideye-cart-card strong {
+        color: #f6f7fb;
+    }
+
+    .wideye-cart-card .text-muted {
+        color: rgba(226, 232, 240, 0.72) !important;
+    }
+
+    .wideye-qty-btn {
+        color: #ffffff !important;
+        padding: 0 6px;
+        font-size: 1.1rem;
+        line-height: 1;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+    }
+
+    .wideye-qty-btn:hover {
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff !important;
+    }
+
+    .wideye-qty-value {
+        display: inline-block;
+        min-width: 28px;
+        text-align: center;
+        font-weight: 600;
+        color: #f6f7fb;
+    }
+
+    .wideye-cart-divider {
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .wideye-cart-summary-sep {
+        border-color: rgba(255, 255, 255, 0.15);
     }
 
     .wideye-cart-thumb {
@@ -77,30 +121,28 @@
 
                     {% for item in cart %}
 
-                    <div class="row">
+                    <div class="row align-items-center py-3">
                         <div class="col-sm-3 text-center align-self-center">
                             <img src="{{ get_product_image(item.product, item.size) }}" alt="" class="img-fluid wideye-cart-thumb shadow-sm">
                         </div>
                         <div class="col-sm-9">
                             <div>
-                                <h3>{{ item.product.product_name }}</h3>
+                                <h3 class="mb-1">{{ item.product.product_name }}</h3>
                                 <p class="mb-2 text-muted small">{{ format_option_summary(item) }}</p>
-                                <div class="my-3">
-                                    <label for="quantity">Quantity</label>
-                                    <a class="minus-cart btn" pid="{{item.id}}"><i class="fas fa-minus-square fa-lg"></i></a>
-                                    <span id="quantity">{{ item.quantity }}</span>
-                                    <a class="plus-cart btn " pid="{{ item.id }}"><i class="fas fa-plus-square fa-lg"></i></a>
-
+                                <div class="my-3 d-flex align-items-center gap-2">
+                                    <span class="small" style="color:#f6f7fb;">Quantity</span>
+                                    <a class="minus-cart wideye-qty-btn" pid="{{item.id}}" href="#"><i class="fas fa-minus fa-sm"></i></a>
+                                    <span class="wideye-qty-value" id="quantity">{{ item.quantity }}</span>
+                                    <a class="plus-cart wideye-qty-btn" pid="{{ item.id }}" href="#"><i class="fas fa-plus fa-sm"></i></a>
                                 </div>
-
-                                <div class="d-flex justify-content-between">
-                                    <p class="mb-0"><span><strong>PhP {{ item.product.current_price }}</strong></span></p>
-                                    <a href="" class="remove-cart btn btn-sm wideye-cart-remove mr-3 " pid="{{item.id}}">Remove</a>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <p class="mb-0"><strong>PhP {{ item.product.current_price }}</strong></p>
+                                    <a href="" class="remove-cart btn btn-sm wideye-cart-remove" pid="{{item.id}}">Remove</a>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <hr>
+                    <hr class="wideye-cart-divider">
 
                     {% endfor %}
                 </div>
@@ -110,8 +152,8 @@
         <div class="col-sm-4">
             <div class="card wideye-cart-card">
                 <div class="card-body">
-                    <h3>Cart Summary </h3>
-                    <hr color="black">
+                    <h3 class="mb-3">Cart Summary</h3>
+                    <hr class="wideye-cart-summary-sep">
                     <ul class="list-group">
                         {% for item in cart %}
 
