@@ -99,23 +99,48 @@ def _list_all_ports():
 
 
 class QR204Printer:
-    """Driver for the QR204 thermal printer over serial."""
+    """
+    Driver for the QR204 thermal printer.
+
+    Supports two device modes automatically:
+    - Serial port  (/dev/ttyUSB*, /dev/ttyACM*, COM*)  — uses pyserial
+    - Raw USB lp   (/dev/usb/lp*)                      — uses direct file I/O
+    """
 
     def __init__(self, port=DEFAULT_PORT, baudrate=DEFAULT_BAUD, timeout=DEFAULT_TIMEOUT):
-        if serial is None:
-            raise RuntimeError(
-                'pyserial is required. Install it with: pip install pyserial'
-            )
-
         # If no port given, auto-detect
         self.port = port or find_printer_port()
         self.baudrate = baudrate
         self.timeout = timeout
-        self._connection = None
+        self._connection = None   # serial.Serial instance (serial mode)
+        self._raw_fd = None       # raw file handle (USB lp mode)
+
+    def _is_raw_usb(self):
+        return self.port and self.port.startswith('/dev/usb/lp')
 
     # ── Connection management ────────────────────────────────────────────
 
     def open(self):
+        if self._is_raw_usb():
+            if self._raw_fd:
+                return
+            if not self.port:
+                raise RuntimeError('No printer port found.')
+            try:
+                self._raw_fd = open(self.port, 'wb', buffering=0)
+            except PermissionError:
+                raise PermissionError(
+                    f'Permission denied: {self.port}\n'
+                    f'Fix with:  sudo usermod -aG lp $USER  then log out and back in.\n'
+                    f'Or temporarily:  sudo chmod a+rw {self.port}'
+                )
+            time.sleep(0.3)
+            self._raw_write(INIT)
+            return
+
+        # Serial mode
+        if serial is None:
+            raise RuntimeError('pyserial is required. Install it with: pip install pyserial')
         if self._connection and self._connection.is_open:
             return
 
@@ -137,6 +162,12 @@ class QR204Printer:
         self._write(INIT)
 
     def close(self):
+        if self._raw_fd:
+            try:
+                self._raw_fd.close()
+            except Exception:
+                pass
+            self._raw_fd = None
         if self._connection and self._connection.is_open:
             self._connection.close()
             self._connection = None
@@ -151,15 +182,22 @@ class QR204Printer:
 
     # ── Low-level helpers ────────────────────────────────────────────────
 
-    def _write(self, data):
-        if not self._connection or not self._connection.is_open:
-            raise RuntimeError('Printer connection is not open.')
-
+    def _raw_write(self, data):
+        """Write raw bytes to a /dev/usb/lp* device."""
         if isinstance(data, str):
             data = data.encode('utf-8')
+        self._raw_fd.write(data)
 
-        self._connection.write(data)
-        self._connection.flush()
+    def _write(self, data):
+        if isinstance(data, str):
+            data = data.encode('utf-8')
+        if self._is_raw_usb():
+            self._raw_write(data)
+        else:
+            if not self._connection or not self._connection.is_open:
+                raise RuntimeError('Printer connection is not open.')
+            self._connection.write(data)
+            self._connection.flush()
 
     # ── Public API ───────────────────────────────────────────────────────
 
