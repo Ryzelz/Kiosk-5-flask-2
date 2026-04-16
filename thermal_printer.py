@@ -25,6 +25,7 @@ except ImportError:
 # ── ESC/POS command constants ────────────────────────────────────────────────
 ESC = b'\x1b'
 GS = b'\x1d'
+DC2 = b'\x12'
 
 INIT = ESC + b'\x40'                 # Initialize printer
 LINE_FEED = b'\x0a'
@@ -44,6 +45,19 @@ NORMAL_SIZE = GS + b'\x21\x00'
 
 UNDERLINE_ON = ESC + b'\x2d\x01'
 UNDERLINE_OFF = ESC + b'\x2d\x00'
+
+# ── Print density / heating ──────────────────────────────────────────────────
+# ESC 7 n1 n2 n3:
+#   n1 = heating dots   (0–255, default 7  → 8 dots)
+#   n2 = heating time   (0–255, default 80 → 800 µs) ← increase to darken
+#   n3 = heating interval (0–255, default 2)
+# Raise n2 to get darker prints; too high risks overheating the head.
+def _heating_cmd(dots=11, time_=180, interval=2):
+    return ESC + b'\x37' + bytes([dots, time_, interval])
+
+# DC2 # n  — print density 0–15 (some printer models)
+def _density_cmd(level=12):
+    return DC2 + b'\x23' + bytes([level])
 
 # Default serial settings for QR204
 DEFAULT_PORT = None   # None = auto-detect
@@ -107,11 +121,14 @@ class QR204Printer:
     - Raw USB lp   (/dev/usb/lp*)                      — uses direct file I/O
     """
 
-    def __init__(self, port=DEFAULT_PORT, baudrate=DEFAULT_BAUD, timeout=DEFAULT_TIMEOUT):
+    def __init__(self, port=DEFAULT_PORT, baudrate=DEFAULT_BAUD, timeout=DEFAULT_TIMEOUT,
+                 density=12, heating_time=180):
         # If no port given, auto-detect
         self.port = port or find_printer_port()
         self.baudrate = baudrate
         self.timeout = timeout
+        self.density = max(0, min(15, density))
+        self.heating_time = max(0, min(255, heating_time))
         self._connection = None   # serial.Serial instance (serial mode)
         self._raw_fd = None       # raw file handle (USB lp mode)
 
@@ -136,6 +153,9 @@ class QR204Printer:
                 )
             time.sleep(0.3)
             self._raw_write(INIT)
+            time.sleep(0.1)
+            self._raw_write(_heating_cmd(time_=self.heating_time))
+            self._raw_write(_density_cmd(self.density))
             return
 
         # Serial mode
@@ -160,6 +180,9 @@ class QR204Printer:
         )
         time.sleep(0.5)
         self._write(INIT)
+        time.sleep(0.1)
+        self._write(_heating_cmd(time_=self.heating_time))
+        self._write(_density_cmd(self.density))
 
     def close(self):
         if self._raw_fd:
@@ -269,6 +292,10 @@ def main():
     parser.add_argument('--baud', type=int, default=DEFAULT_BAUD, help=f'Baud rate (default: {DEFAULT_BAUD})')
     parser.add_argument('--text', type=str, default=None, help='Print a single line of text and exit')
     parser.add_argument('--list-ports', action='store_true', help='List all available serial ports and exit')
+    parser.add_argument('--density', type=int, default=12, metavar='0-15',
+                        help='Print density 0 (lightest) – 15 (darkest), default 12')
+    parser.add_argument('--heating-time', type=int, default=180, metavar='0-255',
+                        help='Heating time 0–255 (higher = darker), default 180')
     args = parser.parse_args()
 
     if args.list_ports:
@@ -290,7 +317,8 @@ def main():
         print('Run with --list-ports to see all available ports.')
         return
 
-    with QR204Printer(port=port, baudrate=args.baud) as printer:
+    with QR204Printer(port=port, baudrate=args.baud,
+                      density=args.density, heating_time=args.heating_time) as printer:
         if args.text:
             printer.println(args.text)
             printer.feed(3)
