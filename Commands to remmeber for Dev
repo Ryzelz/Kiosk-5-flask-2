@@ -1,0 +1,70 @@
+WIDEYE DEV COMMANDS
+
+WINDOWS
+1. Open Command Prompt in the project root:
+   cd C:\Users\ryzel\PycharmProjects\Kiosk-5-flask
+
+2. Create virtual environment:
+   python -m venv .venv
+
+3. Activate virtual environment:
+   .venv\Scripts\activate
+
+4. Install dependencies:
+   pip install --upgrade pip
+   pip install -r requirements.txt
+
+5. Run the app with the Windows script:
+   run.bat
+
+6. Optional manual run:
+   python main.py
+
+7. Optional custom host/port:
+   set APP_HOST=0.0.0.0
+   set APP_PORT=5000
+   set APP_DEBUG=1
+   run.bat
+
+
+LINUX / RASPBERRY PI
+1. Open terminal in the project root:
+   cd /path/to/Kiosk-5-flask
+
+2. Make the bash script executable:
+   chmod +x run.sh
+
+3. Run the app with the Linux script:
+   ./run.sh
+
+4. What run.sh does:
+   - creates Linux virtual environment at .venv-linux if missing
+   - installs/updates pip
+   - installs requirements.txt
+   - starts the Flask app
+
+5. Optional custom host/port:
+   APP_HOST=0.0.0.0 APP_PORT=5000 APP_DEBUG=1 ./run.sh
+
+6. Optional manual setup:
+   python3 -m venv .venv-linux
+   source .venv-linux/bin/activate
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   python main.py
+
+
+TESTS
+- Windows:
+  python -m pytest -q
+
+- Linux / Raspberry Pi:
+  python3 -m pytest -q
+
+
+RENDER
+- Build command:
+  pip install -r requirements.txt
+
+- Start command:
+  gunicorn wsgi:app
