@@ -460,6 +460,8 @@ def analytics_page():
         monthly_labels.append(first.strftime('%b %Y'))
         monthly_values.append(round(total, 2))
 
+    has_demo_data = Customer.query.filter(Customer.email.like('%@demo.com')).first() is not None
+
     return render_template(
         'analytics.html',
         total_revenue=total_revenue,
@@ -472,6 +474,7 @@ def analytics_page():
         monthly_labels=monthly_labels,
         monthly_values=monthly_values,
         get_product_image=get_product_image,
+        has_demo_data=has_demo_data,
     )
 
 
@@ -558,6 +561,34 @@ def seed_demo_data():
     db.session.commit()
 
     flash('Demo data seeded! Reload the analytics page to see it.', 'success')
+    return redirect('/analytics')
+
+
+@admin.route('/clear-demo-data')
+@login_required
+def clear_demo_data():
+    if not current_user_is_admin():
+        return render_template('404.html')
+
+    demo_emails = ['juan@demo.com', 'maria@demo.com', 'pedro@demo.com',
+                   'ana@demo.com', 'carlos@demo.com']
+    demo_product_names = ['Caramel Latte', 'Matcha Frappe', 'Classic Espresso',
+                          'Hazelnut Cappuccino', 'Vanilla Cold Brew']
+
+    # Remove demo orders (by payment_id prefix)
+    Order.query.filter(Order.payment_id.like('demo-%')).delete(synchronize_session=False)
+
+    # Remove demo customers
+    Customer.query.filter(Customer.email.in_(demo_emails)).delete(synchronize_session=False)
+
+    # Remove demo products only if they have no remaining orders
+    for name in demo_product_names:
+        product = Product.query.filter_by(product_name=name).first()
+        if product and Order.query.filter_by(product_link=product.id).count() == 0:
+            db.session.delete(product)
+
+    db.session.commit()
+    flash('Demo data cleared. Showing live data.', 'success')
     return redirect('/analytics')
 
 

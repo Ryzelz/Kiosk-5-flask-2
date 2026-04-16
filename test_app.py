@@ -1128,10 +1128,19 @@ class TestFaceRecognitionFlow:
     def test_usual_order_confirm_success(self, mock_attach, mock_create_pi,
                                           client, app, db, normal_user, sample_product):
         uid, email, pw = normal_user
-        from website.models import Customer
+        from website.models import Customer, UsualOrderItem
         with app.app_context():
             customer = Customer.query.get(uid)
             customer.usual_product_id = sample_product
+            usual = UsualOrderItem()
+            usual.customer_link = uid
+            usual.product_link = sample_product
+            usual.quantity = 1
+            usual.size = 'Small'
+            usual.sugar = ''
+            usual.milk = ''
+            usual.shot = ''
+            db.session.add(usual)
             db.session.commit()
             username = customer.username
 
@@ -1278,10 +1287,19 @@ class TestPaymentMethodSelection:
 
     def test_usual_order_cash_confirm(self, client, app, db, normal_user, sample_product):
         uid, email, pw = normal_user
-        from website.models import Customer
+        from website.models import Customer, UsualOrderItem
         with app.app_context():
             customer = Customer.query.get(uid)
             customer.usual_product_id = sample_product
+            usual = UsualOrderItem()
+            usual.customer_link = uid
+            usual.product_link = sample_product
+            usual.quantity = 1
+            usual.size = 'Small'
+            usual.sugar = ''
+            usual.milk = ''
+            usual.shot = ''
+            db.session.add(usual)
             db.session.commit()
             username = customer.username
 
