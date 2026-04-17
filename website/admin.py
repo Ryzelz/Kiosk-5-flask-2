@@ -643,17 +643,24 @@ def seed_demo_data():
     db.session.commit()
 
     # ── 3. Demo customers: fixed emails so we don't duplicate ────────────────
-    first_names = ['Juan', 'Maria', 'Pedro', 'Ana', 'Carlos', 'Sofia', 'Miguel', 'Rosa', 'Luis', 'Elena']
-    last_names  = ['dela Cruz', 'Santos', 'Reyes', 'Gonzales', 'Mendoza', 'Garcia', 'Lopez', 'Torres', 'Flores', 'Rivera']
+    first_names = ['Juan', 'Maria', 'Pedro', 'Ana', 'Carlos', 'Sofia', 'Miguel', 'Rosa', 'Luis', 'Elena',
+                   'Diego', 'Camille', 'Marco', 'Bea', 'Andrei', 'Claire', 'Paolo', 'Nica', 'Renz', 'Trisha']
+    last_names  = ['dela Cruz', 'Santos', 'Reyes', 'Gonzales', 'Mendoza', 'Garcia', 'Lopez', 'Torres', 'Flores', 'Rivera',
+                   'Villanueva', 'Aquino', 'Castillo', 'Ramos', 'Diaz', 'Bautista', 'Fernandez', 'Aguilar', 'Pascual', 'Navarro']
     demo_emails = [
         'juan@demo.com', 'maria@demo.com', 'pedro@demo.com',
         'ana@demo.com',  'carlos@demo.com',
     ]
+    rng.shuffle(first_names)
     for i, email in enumerate(demo_emails):
-        if not Customer.query.filter_by(email=email).first():
-            fn = first_names[i % len(first_names)]
-            ln = last_names[rng.randint(0, len(last_names) - 1)]
-            uname = (fn + ln.split()[-1]).lower().replace(' ', '')
+        fn = first_names[i % len(first_names)]
+        ln = rng.choice(last_names)
+        uname = (fn + ln.split()[-1]).lower().replace(' ', '')
+        c = Customer.query.filter_by(email=email).first()
+        if c:
+            c.username          = uname
+            c.face_profile_name = uname
+        else:
             c = Customer()
             c.email             = email
             c.username          = uname

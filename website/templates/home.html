@@ -809,5 +809,71 @@ document.querySelectorAll('.wideye-size-select').forEach(function(select) {
     window.addEventListener('scroll', requestUpdate, { passive: true });
     window.addEventListener('resize', requestUpdate);
 })();
+
+/* ── Add-to-cart AJAX (no scroll reset) ── */
+(function () {
+    // Toast container
+    var toastEl = document.createElement('div');
+    toastEl.id = 'wi-toast';
+    toastEl.style.cssText = [
+        'position:fixed','bottom:28px','left:50%','transform:translateX(-50%) translateY(20px)',
+        'background:#1e2a3a','color:#fff','padding:10px 22px','border-radius:999px',
+        'font-size:0.95rem','font-weight:600','box-shadow:0 4px 24px rgba(0,0,0,.45)',
+        'opacity:0','transition:opacity .25s,transform .25s','z-index:9999',
+        'pointer-events:none','white-space:nowrap'
+    ].join(';');
+    document.body.appendChild(toastEl);
+
+    var toastTimer;
+    function showToast(msg, ok) {
+        toastEl.textContent = (ok ? '✓ ' : '✗ ') + msg;
+        toastEl.style.background = ok ? '#1a3a2a' : '#3a1a1a';
+        toastEl.style.borderLeft = '4px solid ' + (ok ? '#34d399' : '#f87171');
+        toastEl.style.opacity = '1';
+        toastEl.style.transform = 'translateX(-50%) translateY(0)';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+            toastEl.style.opacity = '0';
+            toastEl.style.transform = 'translateX(-50%) translateY(20px)';
+        }, 2200);
+    }
+
+    function updateBadge(count) {
+        var badge = document.querySelector('.wideye-badge');
+        if (count > 0) {
+            if (!badge) {
+                var icon = document.querySelector('a[href="/cart"] .position-relative');
+                if (icon) {
+                    badge = document.createElement('span');
+                    badge.className = 'position-absolute rounded-pill wideye-badge';
+                    icon.appendChild(badge);
+                }
+            }
+            if (badge) badge.textContent = count;
+        } else if (badge) {
+            badge.remove();
+        }
+    }
+
+    document.addEventListener('submit', function (e) {
+        var form = e.target.closest('form[action*="/add-to-cart/"]');
+        if (!form) return;
+        e.preventDefault();
+
+        var data = new FormData(form);
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: data,
+            credentials: 'same-origin'
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            showToast(res.message, res.ok);
+            if (res.ok) updateBadge(res.cart_count);
+        })
+        .catch(function () { showToast('Failed to add to cart', false); });
+    });
+})();
 </script>
 {% endblock %}

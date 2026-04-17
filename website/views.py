@@ -362,6 +362,8 @@ def home():
 def add_to_cart(item_id):
     item_to_add = Product.query.get(item_id)
     if item_to_add is None:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(ok=False, message='Item not found'), 404
         flash('Item not found')
         return redirect(request.referrer or '/')
 
@@ -385,10 +387,17 @@ def add_to_cart(item_id):
             shot=selection['shot'],
             quantity=qty
         )
-        flash(f'{cart_item.product.product_name} added to cart')
+        msg = f'{cart_item.product.product_name} added to cart'
+        cart_count = Cart.query.filter_by(customer_link=current_user.id).count()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(ok=True, message=msg, cart_count=cart_count)
+        flash(msg)
     except Exception as e:
         print('Item not added to cart', e)
-        flash(f'{item_to_add.product_name} has not been added to cart')
+        msg = f'{item_to_add.product_name} has not been added to cart'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(ok=False, message=msg), 500
+        flash(msg)
 
     return redirect(request.referrer)
 
