@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, flash, redirect, request, jsonify,
 from sqlalchemy import func, or_
 import uuid
 
-from .models import Product, Cart, Order, Customer
+from .models import Product, Cart, Order, Customer, UsualOrderItem
 from flask_login import login_required, current_user
 from . import db
 from .paymongo import create_payment_intent, attach_qrph, retrieve_payment_intent
@@ -138,6 +138,49 @@ def add_customer_usual_to_cart(customer):
         )
 
     return True, f'Usual items added to cart for {customer.username}.'
+
+
+def get_recommendations(customer_id, limit=4):
+    """Return top products for a customer based on order frequency.
+
+    Returns a list of dicts: {product, count, size, sugar, milk, shot}
+    where size/sugar/milk/shot are from the customer's most recent order
+    of that product.
+    """
+    rows = (
+        db.session.query(
+            Order.product_link,
+            func.sum(Order.quantity).label('total_qty'),
+        )
+        .filter(Order.customer_link == customer_id)
+        .group_by(Order.product_link)
+        .order_by(func.sum(Order.quantity).desc())
+        .limit(limit)
+        .all()
+    )
+
+    recommendations = []
+    for row in rows:
+        product = Product.query.get(row.product_link)
+        if product is None or product.in_stock < 1:
+            continue
+        # Most recent order options for this product
+        last_order = (
+            Order.query
+            .filter_by(customer_link=customer_id, product_link=row.product_link)
+            .order_by(Order.date_placed.desc())
+            .first()
+        )
+        recommendations.append({
+            'product': product,
+            'count': int(row.total_qty),
+            'size': last_order.size if last_order else '',
+            'sugar': last_order.sugar if last_order else '',
+            'milk': last_order.milk if last_order else '',
+            'shot': last_order.shot if last_order else '',
+        })
+
+    return recommendations
 
 
 def create_order_and_payment(customer_id, items_list):
@@ -295,13 +338,23 @@ def print_cash_receipt(orders, total):
 
 @views.route('/')
 def home():
-
     items = Product.query.order_by(Product.date_added.desc()).all()
 
-    return render_template('home.html', items=items, format_option_summary=format_option_summary,
-                           parse_options=parse_options, get_product_image=get_product_image,
-                           cart=Cart.query.filter_by(customer_link=current_user.id).all()
-                           if current_user.is_authenticated else [])
+    recommendations = (
+        get_recommendations(current_user.id)
+        if current_user.is_authenticated else []
+    )
+
+    return render_template(
+        'home.html',
+        items=items,
+        recommendations=recommendations,
+        format_option_summary=format_option_summary,
+        parse_options=parse_options,
+        get_product_image=get_product_image,
+        cart=Cart.query.filter_by(customer_link=current_user.id).all()
+        if current_user.is_authenticated else [],
+    )
 
 
 @views.route('/add-to-cart/<int:item_id>', methods=['GET', 'POST'])

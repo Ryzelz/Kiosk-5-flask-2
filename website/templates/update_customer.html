@@ -99,7 +99,109 @@
             font-weight: 600;
         }
 
-        @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+        .wideye-order-stats {
+            margin-top: 24px;
+        }
+
+        .wideye-order-stats-title {
+            color: #94a2bc;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .wideye-order-stat-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+
+        .wideye-order-stat-row.top-item {
+            border-color: rgba(255,191,47,0.35);
+            background: rgba(255,191,47,0.06);
+        }
+
+        .wideye-order-stat-rank {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #94a2bc;
+            min-width: 22px;
+            text-align: center;
+        }
+
+        .wideye-order-stat-rank.gold { color: #ffbf2f; }
+
+        .wideye-order-stat-thumb {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .wideye-order-stat-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .wideye-order-stat-name {
+            color: #f6f7fb;
+            font-weight: 600;
+            font-size: 0.88rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .wideye-order-stat-sub {
+            color: #94a2bc;
+            font-size: 0.74rem;
+        }
+
+        .wideye-order-stat-qty {
+            font-weight: 800;
+            font-size: 1rem;
+            color: #f6f7fb;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .wideye-order-stat-qty small {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 400;
+            color: #94a2bc;
+        }
+
+        .wideye-order-bar-wrap {
+            height: 4px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        .wideye-order-bar {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #6366f1, #818cf8);
+        }
+
+        .wideye-order-stat-row.top-item .wideye-order-bar {
+            background: linear-gradient(90deg, #f59e0b, #ffbf2f);
+        }
+
+        .wideye-no-orders {
+            color: #94a2bc;
+            font-size: 0.84rem;
+            padding: 10px 0;
+        }
             .wideye-customer-edit-card {
                 max-width: 100%;
                 border-radius: 16px;
@@ -165,6 +267,41 @@
                 <a href="/customers" class="wideye-customer-edit-secondary">Back to Customers</a>
             </div>
         </form>
+    </div>
+
+    {# ── Order Stats ── #}
+    <div class="wideye-customer-edit-card wideye-order-stats">
+        <p class="wideye-order-stats-title">Top Ordered Items</p>
+
+        {% if order_stats %}
+        {% set max_qty = order_stats[0].total_qty %}
+        {% for stat in order_stats %}
+        {% set is_top = loop.index == 1 %}
+        <div class="wideye-order-stat-row {% if is_top %}top-item{% endif %}">
+            <span class="wideye-order-stat-rank {% if is_top %}gold{% endif %}">#{{ loop.index }}</span>
+            <img src="{{ stat.product.product_picture.split(',')[0].strip() if stat.product.product_picture else '/media/default.jpg' }}"
+                 alt="" class="wideye-order-stat-thumb">
+            <div class="wideye-order-stat-info">
+                <div class="wideye-order-stat-name">{{ stat.product.product_name }}</div>
+                <div class="wideye-order-stat-sub">
+                    {{ stat.order_count }} order{{ 's' if stat.order_count != 1 }}
+                    {% if stat.last_ordered %}
+                    · Last: {{ stat.last_ordered.strftime('%b %d, %Y') }}
+                    {% endif %}
+                </div>
+                <div class="wideye-order-bar-wrap">
+                    <div class="wideye-order-bar" style="width:{{ ((stat.total_qty / max_qty) * 100) | int }}%"></div>
+                </div>
+            </div>
+            <div class="wideye-order-stat-qty">
+                {{ stat.total_qty }}
+                <small>units</small>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="wideye-no-orders">This customer has not placed any orders yet.</p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

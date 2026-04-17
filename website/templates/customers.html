@@ -137,6 +137,7 @@
                     <th>Username</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Top Item</th>
                     <th>Date Joined</th>
                     <th>Action</th>
                 </tr>
@@ -151,6 +152,21 @@
                         <span class="wideye-customer-role {% if customer.is_admin %}admin{% endif %}">
                             {% if customer.is_admin %}Admin{% else %}Customer{% endif %}
                         </span>
+                    </td>
+                    <td>
+                        {% set top = top_items.get(customer.id) %}
+                        {% if top %}
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <img src="{{ top.product.product_picture.split(',')[0].strip() if top.product.product_picture else '/media/default.jpg' }}"
+                                 style="width:30px;height:30px;object-fit:cover;border-radius:6px;flex-shrink:0;" alt="">
+                            <div>
+                                <div style="color:#f6f7fb;font-size:0.82rem;font-weight:600;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">{{ top.product.product_name }}</div>
+                                <div style="color:#94a2bc;font-size:0.72rem;">{{ top.total_qty }} units</div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span style="color:#94a2bc;font-size:0.8rem;">No orders</span>
+                        {% endif %}
                     </td>
                     <td>{{ customer.date_joined.strftime('%b %d, %Y') if customer.date_joined else 'N/A' }}</td>
                     <td>

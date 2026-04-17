@@ -40,7 +40,37 @@ def current_user_is_admin():
 
 
 def render_customer_update_page(customer, form):
-    return render_template('update_customer.html', customer=customer, form=form)
+    order_stats = get_customer_order_stats(customer.id)
+    return render_template('update_customer.html', customer=customer, form=form, order_stats=order_stats)
+
+
+def get_customer_order_stats(customer_id):
+    """Return per-product order totals for a customer, sorted by total quantity desc."""
+    rows = (
+        db.session.query(
+            Order.product_link,
+            func.sum(Order.quantity).label('total_qty'),
+            func.count(Order.id).label('order_count'),
+            func.max(Order.date_placed).label('last_ordered'),
+        )
+        .filter(Order.customer_link == customer_id)
+        .group_by(Order.product_link)
+        .order_by(func.sum(Order.quantity).desc())
+        .all()
+    )
+
+    stats = []
+    for row in rows:
+        product = Product.query.get(row.product_link)
+        if product is None:
+            continue
+        stats.append({
+            'product': product,
+            'total_qty': int(row.total_qty),
+            'order_count': int(row.order_count),
+            'last_ordered': row.last_ordered,
+        })
+    return stats
 
 
 @admin.route('/media/<path:filename>')
@@ -299,7 +329,12 @@ def delete_order(order_id):
 def display_customers():
     if current_user_is_admin():
         customers = Customer.query.order_by(Customer.date_joined.desc(), Customer.id.desc()).all()
-        return render_template('customers.html', customers=customers)
+        # Build a quick top-item lookup for the table
+        top_items = {}
+        for customer in customers:
+            stats = get_customer_order_stats(customer.id)
+            top_items[customer.id] = stats[0] if stats else None
+        return render_template('customers.html', customers=customers, top_items=top_items)
     return render_template('404.html')
 
 

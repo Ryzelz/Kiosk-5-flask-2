@@ -27,8 +27,130 @@
             transition: transform 0.08s linear;
         }
 
-        .wideye-filter-bar {
-            background: #f4f4f7;
+        .wideye-reco-section {
+            margin-bottom: 24px;
+        }
+
+        .wideye-reco-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .wideye-reco-kicker {
+            color: #ffbf2f;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .wideye-reco-title {
+            color: #f7f9ff;
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .wideye-reco-scroll {
+            display: flex;
+            gap: 14px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scrollbar-width: none;
+        }
+
+        .wideye-reco-scroll::-webkit-scrollbar { display: none; }
+
+        .wideye-reco-card {
+            background: #121a29;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            overflow: hidden;
+            flex: 0 0 200px;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.2s;
+        }
+
+        .wideye-reco-card:hover {
+            border-color: rgba(255, 191, 47, 0.4);
+        }
+
+        .wideye-reco-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .wideye-reco-body {
+            padding: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .wideye-reco-name {
+            color: #f6f7fb;
+            font-weight: 700;
+            font-size: 0.92rem;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .wideye-reco-opts {
+            color: rgba(200, 210, 230, 0.65);
+            font-size: 0.74rem;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .wideye-reco-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 191, 47, 0.12);
+            color: #ffbf2f;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            width: fit-content;
+        }
+
+        .wideye-reco-price {
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.95rem;
+            margin-top: auto;
+        }
+
+        .wideye-reco-btn {
+            display: block;
+            width: 100%;
+            background: linear-gradient(180deg, #30415f, #2a3954);
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.82rem;
+            border: none;
+            border-radius: 0 0 14px 14px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .wideye-reco-btn:hover { background: #3a5070; color: #fff; }
+
+        @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
+            .wideye-reco-card { flex: 0 0 160px; }
+            .wideye-reco-img { height: 90px; }
+        }
             border-radius: 12px;
             padding: 10px 18px;
             margin-bottom: 18px;
@@ -401,6 +523,45 @@
             data-parallax-image
         >
     </section>
+
+    {% if recommendations %}
+    <section class="wideye-reco-section">
+        <div class="wideye-reco-head">
+            <div>
+                <div class="wideye-reco-kicker">Based on your history</div>
+                <h2 class="wideye-reco-title">Recommended for you</h2>
+            </div>
+        </div>
+        <div class="wideye-reco-scroll">
+            {% for rec in recommendations %}
+            {% set p = rec.product %}
+            <div class="wideye-reco-card">
+                <img src="{{ get_product_image(p, rec.size) }}" alt="{{ p.product_name }}" class="wideye-reco-img">
+                <div class="wideye-reco-body">
+                    <p class="wideye-reco-name">{{ p.product_name }}</p>
+                    {% set opts = [] %}
+                    {% if rec.size %}{% set _ = opts.append(rec.size) %}{% endif %}
+                    {% if rec.sugar %}{% set _ = opts.append(rec.sugar) %}{% endif %}
+                    {% if rec.milk %}{% set _ = opts.append(rec.milk) %}{% endif %}
+                    {% if rec.shot %}{% set _ = opts.append(rec.shot) %}{% endif %}
+                    <p class="wideye-reco-opts">{{ opts | join(' · ') if opts else 'Standard' }}</p>
+                    <span class="wideye-reco-count">
+                        <i class="bi bi-arrow-repeat"></i> Ordered {{ rec.count }}×
+                    </span>
+                    <p class="wideye-reco-price">PhP {{ p.current_price }}</p>
+                </div>
+                <form action="/add-to-cart/{{ p.id }}" method="POST">
+                    <input type="hidden" name="size" value="{{ rec.size }}">
+                    <input type="hidden" name="sugar" value="{{ rec.sugar }}">
+                    <input type="hidden" name="milk" value="{{ rec.milk }}">
+                    <input type="hidden" name="shot" value="{{ rec.shot }}">
+                    <button type="submit" class="wideye-reco-btn">Add to cart</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 
     <section class="wideye-filter-bar">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
