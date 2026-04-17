@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 from .forms import ShopItemsForm, UpdateShopItemsForm, OrderForm, AdminCustomerUpdateForm
 from werkzeug.utils import secure_filename
-from .models import Product, Order, Customer
+from .models import Product, Order, Customer, Cart, UsualOrderItem
 from .views import parse_options, get_product_image
 from . import db
 import time
@@ -792,10 +792,26 @@ def clear_demo_data():
                           'Hazelnut Cappuccino', 'Vanilla Cold Brew',
                           'Brown Sugar Milk Tea', 'Iced Americano']
 
+    # Collect demo customer IDs first
+    demo_customers = Customer.query.filter(Customer.email.in_(demo_emails)).all()
+    demo_customer_ids = [c.id for c in demo_customers]
+
     # Remove demo orders (by payment_id prefix)
     Order.query.filter(Order.payment_id.like('demo-%')).delete(synchronize_session=False)
 
-    # Remove demo customers
+    # Remove any remaining orders tied to demo customers (safety net)
+    if demo_customer_ids:
+        Order.query.filter(Order.customer_link.in_(demo_customer_ids)).delete(synchronize_session=False)
+
+    # Remove cart items belonging to demo customers
+    if demo_customer_ids:
+        Cart.query.filter(Cart.customer_link.in_(demo_customer_ids)).delete(synchronize_session=False)
+
+    # Remove usual order items belonging to demo customers
+    if demo_customer_ids:
+        UsualOrderItem.query.filter(UsualOrderItem.customer_link.in_(demo_customer_ids)).delete(synchronize_session=False)
+
+    # Now safe to remove demo customers
     Customer.query.filter(Customer.email.in_(demo_emails)).delete(synchronize_session=False)
 
     # Remove demo products only if they have no remaining orders
