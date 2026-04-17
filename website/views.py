@@ -374,13 +374,16 @@ def add_to_cart(item_id):
     )
 
     try:
+        qty = int(request.values.get('quantity', 1))
+        qty = max(1, min(qty, 99))
         cart_item = add_product_to_customer_cart(
             current_user.id,
             item_to_add,
             size=selection['size'],
             sugar=selection['sugar'],
             milk=selection['milk'],
-            shot=selection['shot']
+            shot=selection['shot'],
+            quantity=qty
         )
         flash(f'{cart_item.product.product_name} added to cart')
     except Exception as e:

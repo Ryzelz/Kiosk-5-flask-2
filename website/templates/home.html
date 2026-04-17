@@ -367,8 +367,61 @@
             margin-top: auto;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px;
             padding-top: 4px;
+        }
+
+        .wideye-qty-stepper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 999px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .wideye-qty-stepper--sm {
+            width: auto;
+            flex: 0 0 auto;
+        }
+
+        .wideye-qty-step {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 6px 14px;
+            cursor: pointer;
+            line-height: 1;
+            transition: background 0.15s;
+        }
+
+        .wideye-qty-step:hover { background: rgba(255,255,255,0.1); }
+
+        .wideye-qty-input {
+            background: none;
+            border: none;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            text-align: center;
+            width: 40px;
+            -moz-appearance: textfield;
+            outline: none;
+        }
+
+        .wideye-qty-input::-webkit-outer-spin-button,
+        .wideye-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+        .wideye-reco-footer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px 12px;
         }
 
         .wideye-price-wrap {
@@ -555,7 +608,14 @@
                     <input type="hidden" name="sugar" value="{{ rec.sugar }}">
                     <input type="hidden" name="milk" value="{{ rec.milk }}">
                     <input type="hidden" name="shot" value="{{ rec.shot }}">
-                    <button type="submit" class="wideye-reco-btn">Add to cart</button>
+                    <div class="wideye-reco-footer">
+                        <div class="wideye-qty-stepper wideye-qty-stepper--sm">
+                            <button type="button" class="wideye-qty-step" onclick="wiStepQty(this,-1)">−</button>
+                            <input type="number" name="quantity" value="1" min="1" max="99" class="wideye-qty-input" readonly>
+                            <button type="button" class="wideye-qty-step" onclick="wiStepQty(this,1)">+</button>
+                        </div>
+                        <button type="submit" class="wideye-reco-btn">Add to cart</button>
+                    </div>
                 </form>
             </div>
             {% endfor %}
@@ -679,6 +739,11 @@
                             <div class="wideye-price-current">PhP {{ item.current_price }}</div>
                             <div class="wideye-price-old">PhP {{ item.previous_price }}</div>
                         </div>
+                        <div class="wideye-qty-stepper">
+                            <button type="button" class="wideye-qty-step" onclick="wiStepQty(this,-1)">−</button>
+                            <input type="number" name="quantity" value="1" min="1" max="99" class="wideye-qty-input" readonly>
+                            <button type="button" class="wideye-qty-step" onclick="wiStepQty(this,1)">+</button>
+                        </div>
                         <button class="wideye-add-link border-0" type="submit">Add to cart</button>
                     </div>
                     </form>
@@ -691,6 +756,13 @@
 </div>
 
 <script>
+function wiStepQty(btn, delta) {
+    var input = btn.parentElement.querySelector('.wideye-qty-input');
+    var val = parseInt(input.value, 10) || 1;
+    val = Math.max(1, Math.min(99, val + delta));
+    input.value = val;
+}
+
 document.querySelectorAll('.wideye-size-select').forEach(function(select) {
     select.addEventListener('change', function() {
         var card = this.closest('.wideye-product-card');
