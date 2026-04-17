@@ -276,7 +276,15 @@
 
         <div class="wideye-panel">
             <div class="wideye-panel-title">Monthly Sales (₱)</div>
-            <canvas id="monthlyChart" height="200"></canvas>
+            {% if monthly_labels %}
+            <div style="overflow-x:auto; overflow-y:hidden;">
+                <div style="min-width: {{ [monthly_labels | length * 60, 400] | max }}px; height: 220px; position:relative;">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+            {% else %}
+            <p style="color:#4b5c7a;font-size:0.85rem;">No order data yet. Seed demo data to see this chart.</p>
+            {% endif %}
         </div>
     </div>
 
@@ -396,26 +404,32 @@
     {% endif %}
 
     /* ── Monthly Sales line chart ── */
-    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    const monthlyCanvas = document.getElementById('monthlyChart');
+    if (monthlyCanvas) {
+    const monthlyCtx = monthlyCanvas.getContext('2d');
+    const monthlyLabels = {{ monthly_labels | tojson }};
+    const monthlyValues = {{ monthly_values | tojson }};
     new Chart(monthlyCtx, {
-        type: 'line',
+        type: monthlyLabels.length <= 1 ? 'bar' : 'line',
         data: {
-            labels: {{ monthly_labels | tojson }},
+            labels: monthlyLabels,
             datasets: [{
                 label: 'Sales (₱)',
-                data: {{ monthly_values | tojson }},
+                data: monthlyValues,
                 borderColor: '#38bdf8',
-                backgroundColor: 'rgba(56,189,248,0.12)',
+                backgroundColor: 'rgba(56,189,248,0.18)',
                 borderWidth: 2.5,
                 pointBackgroundColor: '#38bdf8',
-                pointRadius: 4,
-                pointHoverRadius: 6,
+                pointRadius: 5,
+                pointHoverRadius: 7,
                 fill: true,
                 tension: 0.35,
+                borderRadius: 8,
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -425,8 +439,16 @@
                 }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { color: '#94a2bc' } },
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#94a2bc',
+                        maxRotation: 45,
+                        minRotation: 30,
+                    }
+                },
                 y: {
+                    beginAtZero: true,
                     grid: { color: 'rgba(255,255,255,0.05)' },
                     ticks: {
                         color: '#94a2bc',
@@ -436,5 +458,6 @@
             }
         }
     });
+    }
 </script>
 {% endblock %}

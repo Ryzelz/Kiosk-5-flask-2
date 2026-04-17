@@ -548,21 +548,31 @@ def analytics_page():
     popular_values = [int(r.total_qty) for r in popular_raw]
 
     from datetime import datetime, timedelta
+    import calendar
+
+    now = datetime.utcnow()
     monthly_labels = []
     monthly_values = []
-    now = datetime.utcnow()
-    for i in range(5, -1, -1):
-        first = (now.replace(day=1) - timedelta(days=i * 28)).replace(day=1)
-        if first.month == 12:
-            last = first.replace(year=first.year + 1, month=1, day=1)
-        else:
-            last = first.replace(month=first.month + 1, day=1)
+
+    # Find the earliest order date; fall back to 12 months ago if no orders
+    earliest = db.session.query(func.min(Order.date_placed)).scalar()
+    if earliest is None:
+        earliest = now - timedelta(days=365)
+
+    # Walk month-by-month from earliest month up to current month
+    cursor = earliest.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    while cursor <= this_month_start:
+        _, days_in_month = calendar.monthrange(cursor.year, cursor.month)
+        next_month = cursor + timedelta(days=days_in_month)
         total = db.session.query(func.sum(Order.price)).filter(
-            Order.date_placed >= first,
-            Order.date_placed < last,
+            Order.date_placed >= cursor,
+            Order.date_placed < next_month,
         ).scalar() or 0
-        monthly_labels.append(first.strftime('%b %Y'))
+        monthly_labels.append(cursor.strftime('%b %Y'))
         monthly_values.append(round(total, 2))
+        cursor = next_month
 
     has_demo_data = Customer.query.filter(Customer.email.like('%@demo.com')).first() is not None
 
@@ -589,40 +599,61 @@ def seed_demo_data():
         return render_template('404.html')
 
     import random
+    import uuid as _uuid
+    from datetime import datetime, timedelta
     from werkzeug.security import generate_password_hash
 
-    demo_products = [
-        {'name': 'Caramel Latte',        'price': 145, 'prev': 160},
-        {'name': 'Matcha Frappe',         'price': 155, 'prev': 170},
-        {'name': 'Classic Espresso',      'price': 95,  'prev': 110},
-        {'name': 'Hazelnut Cappuccino',   'price': 135, 'prev': 150},
-        {'name': 'Vanilla Cold Brew',     'price': 165, 'prev': 180},
+    rng = random.Random()  # independent RNG seeded from system entropy each call
+
+    # ── 1. Clear previous demo orders only (preserve live data) ──────────────
+    Order.query.filter(Order.payment_id.like('demo-%')).delete(synchronize_session=False)
+    db.session.commit()
+
+    # ── 2. Demo products: randomise prices/stock each run ────────────────────
+    demo_product_specs = [
+        {'name': 'Caramel Latte',       'base': 145},
+        {'name': 'Matcha Frappe',        'base': 155},
+        {'name': 'Classic Espresso',     'base': 95},
+        {'name': 'Hazelnut Cappuccino',  'base': 135},
+        {'name': 'Vanilla Cold Brew',    'base': 165},
+        {'name': 'Brown Sugar Milk Tea', 'base': 120},
+        {'name': 'Iced Americano',       'base': 100},
     ]
-    for dp in demo_products:
-        if not Product.query.filter_by(product_name=dp['name']).first():
+    for spec in demo_product_specs:
+        existing = Product.query.filter_by(product_name=spec['name']).first()
+        price_variation = rng.randint(-10, 15)
+        current_price   = spec['base'] + price_variation
+        previous_price  = current_price + rng.randint(5, 25)
+        if not existing:
             p = Product()
-            p.product_name    = dp['name']
-            p.current_price   = dp['price']
-            p.previous_price  = dp['prev']
-            p.in_stock        = 50
+            p.product_name    = spec['name']
+            p.current_price   = current_price
+            p.previous_price  = previous_price
+            p.in_stock        = rng.randint(20, 80)
             p.size            = 'Small, Medium, Large'
             p.sugar           = 'Low, Regular, Extra'
             p.milk            = 'Whole, Oat, Almond'
             p.shot            = 'Single, Double'
             p.product_picture = '/media/default.jpg'
-            p.flash_sale      = False
+            p.flash_sale      = rng.random() < 0.25
             db.session.add(p)
+        else:
+            # Refresh stock each seed so analytics shows variety
+            existing.in_stock = rng.randint(20, 80)
     db.session.commit()
 
-    demo_customers = [
-        ('juan@demo.com',   'juandelacruz'),
-        ('maria@demo.com',  'mariasantos'),
-        ('pedro@demo.com',  'pedroreyes'),
-        ('ana@demo.com',    'anagonzales'),
-        ('carlos@demo.com', 'carlosmendoza'),
+    # ── 3. Demo customers: fixed emails so we don't duplicate ────────────────
+    first_names = ['Juan', 'Maria', 'Pedro', 'Ana', 'Carlos', 'Sofia', 'Miguel', 'Rosa', 'Luis', 'Elena']
+    last_names  = ['dela Cruz', 'Santos', 'Reyes', 'Gonzales', 'Mendoza', 'Garcia', 'Lopez', 'Torres', 'Flores', 'Rivera']
+    demo_emails = [
+        'juan@demo.com', 'maria@demo.com', 'pedro@demo.com',
+        'ana@demo.com',  'carlos@demo.com',
     ]
-    for email, uname in demo_customers:
+    for i, email in enumerate(demo_emails):
         if not Customer.query.filter_by(email=email).first():
+            fn = first_names[i % len(first_names)]
+            ln = last_names[rng.randint(0, len(last_names) - 1)]
+            uname = (fn + ln.split()[-1]).lower().replace(' ', '')
             c = Customer()
             c.email             = email
             c.username          = uname
@@ -633,38 +664,112 @@ def seed_demo_data():
     db.session.commit()
 
     products  = Product.query.filter(Product.product_name.in_(
-        [d['name'] for d in demo_products])).all()
-    customers = Customer.query.filter(Customer.email.in_(
-        [e for e, _ in demo_customers])).all()
+        [s['name'] for s in demo_product_specs])).all()
+    customers = Customer.query.filter(Customer.email.in_(demo_emails)).all()
 
-    statuses = ['Accepted', 'Accepted', 'Delivered', 'Delivered',
-                'Pending',  'Accepted', 'Canceled',  'Delivered']
-    sizes    = ['Small', 'Medium', 'Large']
-    from datetime import datetime, timedelta
+    if not products or not customers:
+        flash('Demo seed failed: could not load demo entities.', 'danger')
+        return redirect('/analytics')
 
-    for i in range(30):
-        prod = random.choice(products)
-        qty  = random.randint(1, 3)
-        # spread across last 6 months
-        days_ago = random.randint(0, 180)
-        order_date = datetime.utcnow() - timedelta(days=days_ago)
+    # ── 4. Generate fully random orders with spike months ────────────────────
+    statuses      = ['Pending', 'Accepted', 'Accepted', 'Delivered', 'Delivered', 'Delivered', 'Canceled']
+    sizes         = ['Small', 'Medium', 'Large']
+    sugars        = ['Low', 'Regular', 'Extra']
+    milks         = ['Whole', 'Oat', 'Almond']
+    shots         = ['Single', 'Double']
+    pay_methods   = ['cash', 'cashless', 'cashless']
+    spread_days   = rng.randint(120, 365)
+    order_count   = rng.randint(40, 90)
+
+    batch_id = _uuid.uuid4().hex[:8]
+
+    # Pick 1–2 spike months from the history window, excluding current month (April)
+    now_dt        = datetime.utcnow()
+    current_month = now_dt.month
+    months_back   = spread_days // 30  # approx months in history window
+    candidate_offsets = [m for m in range(1, max(months_back, 2) + 1)]  # exclude 0 = current month
+    spike_count   = rng.randint(1, min(2, len(candidate_offsets)))
+    spike_offsets = rng.sample(candidate_offsets, spike_count)  # months ago (1-based)
+
+    def _date_in_spike_month(offset_months):
+        """Return a random datetime within the spike month."""
+        import calendar as _cal
+        year  = now_dt.year
+        month = now_dt.month - offset_months
+        while month <= 0:
+            month += 12
+            year  -= 1
+        _, days = _cal.monthrange(year, month)
+        day     = rng.randint(1, days)
+        hour    = rng.randint(7, 22)
+        minute  = rng.randint(0, 59)
+        return datetime(year, month, day, hour, minute)
+
+    # Normal baseline orders
+    for i in range(order_count):
+        prod     = rng.choice(products)
+        customer = rng.choice(customers)
+        qty      = rng.choices([1, 2, 3, 4], weights=[50, 30, 15, 5])[0]
+        days_ago = rng.randint(0, spread_days)
+        minutes_variation = rng.randint(0, 1440)
+        order_date = now_dt - timedelta(days=days_ago, minutes=minutes_variation)
+
         o = Order()
         o.quantity       = qty
         o.product_link   = prod.id
-        o.customer_link  = random.choice(customers).id
-        o.size           = random.choice(sizes)
-        o.sugar          = 'Regular'
-        o.milk           = 'Whole'
-        o.shot           = 'Single'
+        o.customer_link  = customer.id
+        o.size           = rng.choice(sizes)
+        o.sugar          = rng.choice(sugars)
+        o.milk           = rng.choice(milks)
+        o.shot           = rng.choice(shots)
         o.price          = prod.current_price * qty
-        o.status         = random.choice(statuses)
-        o.payment_method = random.choice(['cash', 'cashless'])
-        o.payment_id     = f'demo-{int(time.time())}-{i}'
+        o.status         = rng.choice(statuses)
+        o.payment_method = rng.choice(pay_methods)
+        o.payment_id     = f'demo-{batch_id}-{i}'
         o.date_placed    = order_date
         db.session.add(o)
-    db.session.commit()
 
-    flash('Demo data seeded! Reload the analytics page to see it.', 'success')
+    # Spike orders: 3–5× normal volume concentrated in spike months
+    spike_order_count = rng.randint(30, 55)
+    for j in range(spike_order_count):
+        spike_offset = rng.choice(spike_offsets)
+        prod     = rng.choice(products)
+        customer = rng.choice(customers)
+        qty      = rng.choices([2, 3, 4, 5], weights=[30, 35, 25, 10])[0]  # larger qtys
+
+        o = Order()
+        o.quantity       = qty
+        o.product_link   = prod.id
+        o.customer_link  = customer.id
+        o.size           = rng.choice(sizes)
+        o.sugar          = rng.choice(sugars)
+        o.milk           = rng.choice(milks)
+        o.shot           = rng.choice(shots)
+        o.price          = prod.current_price * qty
+        o.status         = rng.choices(
+            ['Accepted', 'Delivered', 'Delivered'],
+            weights=[20, 60, 20]
+        )[0]
+        o.payment_method = rng.choice(pay_methods)
+        o.payment_id     = f'demo-{batch_id}-spike-{j}'
+        o.date_placed    = _date_in_spike_month(spike_offset)
+        db.session.add(o)
+
+    db.session.commit()
+    from datetime import date as _date
+    import calendar as _cal2
+    spike_month_names = []
+    for off in spike_offsets:
+        m = now_dt.month - off
+        y = now_dt.year
+        while m <= 0:
+            m += 12; y -= 1
+        spike_month_names.append(_date(y, m, 1).strftime('%B %Y'))
+    flash(
+        f'Demo data seeded ({order_count} baseline + {spike_order_count} spike orders). '
+        f'Spike months: {", ".join(spike_month_names)}.',
+        'success'
+    )
     return redirect('/analytics')
 
 
@@ -677,7 +782,8 @@ def clear_demo_data():
     demo_emails = ['juan@demo.com', 'maria@demo.com', 'pedro@demo.com',
                    'ana@demo.com', 'carlos@demo.com']
     demo_product_names = ['Caramel Latte', 'Matcha Frappe', 'Classic Espresso',
-                          'Hazelnut Cappuccino', 'Vanilla Cold Brew']
+                          'Hazelnut Cappuccino', 'Vanilla Cold Brew',
+                          'Brown Sugar Milk Tea', 'Iced Americano']
 
     # Remove demo orders (by payment_id prefix)
     Order.query.filter(Order.payment_id.like('demo-%')).delete(synchronize_session=False)
