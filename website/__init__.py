@@ -213,6 +213,35 @@ def sync_usual_order_schema():
         db.session.commit()
 
 
+def cleanup_products_without_pictures():
+    from .models import Product, Cart, Order, Customer, UsualOrderItem
+
+    changed = False
+    products = Product.query.all()
+
+    for product in products:
+        if _parse_csv_options(product.product_picture):
+            continue
+
+        has_orders = Order.query.filter_by(product_link=product.id).first() is not None
+        if has_orders:
+            product.product_picture = '/media/default.jpg'
+            changed = True
+            continue
+
+        Cart.query.filter_by(product_link=product.id).delete(synchronize_session=False)
+        UsualOrderItem.query.filter_by(product_link=product.id).delete(synchronize_session=False)
+        Customer.query.filter_by(usual_product_id=product.id).update(
+            {'usual_product_id': None},
+            synchronize_session=False
+        )
+        db.session.delete(product)
+        changed = True
+
+    if changed:
+        db.session.commit()
+
+
 def create_app(test_config=None):
     app = Flask(__name__)
     INSTANCE_DIR.mkdir(exist_ok=True)
@@ -258,6 +287,7 @@ def create_app(test_config=None):
         sync_cart_schema()
         sync_order_schema()
         sync_usual_order_schema()
+        cleanup_products_without_pictures()
         if not app.testing:
             seed_admin_account()
 

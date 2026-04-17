@@ -86,27 +86,85 @@
         color: #ffffff;
     }
 
+    /* ── Inline option selects ── */
+    .wideye-cart-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 8px 0 10px;
+    }
+
+    .wideye-cart-opt-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 80px;
+    }
+
+    .wideye-cart-opt-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #94a2bc !important;
+    }
+
+    .wideye-cart-opt-select {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 8px;
+        color: #f6f7fb;
+        font-size: 0.82rem;
+        padding: 4px 34px 4px 10px;
+        outline: none;
+        cursor: pointer;
+        transition: border-color .15s;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image:
+            linear-gradient(45deg, transparent 50%, #cbd5e1 50%),
+            linear-gradient(135deg, #cbd5e1 50%, transparent 50%);
+        background-position:
+            calc(100% - 18px) calc(50% - 2px),
+            calc(100% - 12px) calc(50% - 2px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
+    }
+
+    .wideye-cart-opt-select:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    .wideye-cart-opt-select:focus {
+        border-color: rgba(56,189,248,.5);
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+    }
+
+    .wideye-cart-opt-select option,
+    .wideye-cart-opt-select optgroup {
+        background: #121a29;
+        color: #f6f7fb;
+    }
+
+    .wideye-cart-saved-dot {
+        display: inline-block;
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: #34d399;
+        margin-left: 6px;
+        opacity: 0;
+        transition: opacity .3s;
+        vertical-align: middle;
+    }
+
     @media (max-width: 1024px) and (max-height: 650px), (max-width: 900px) {
-        .wideye-cart-shell {
-            margin: 1rem auto 1.25rem;
-        }
-
-        .wideye-cart-card {
-            border-radius: 16px;
-        }
-
-        .wideye-cart-thumb {
-            width: 94px;
-            height: 94px;
-        }
-
-        .wideye-cart-card h3 {
-            font-size: 1rem;
-        }
-
-        .wideye-cart-card .card-body {
-            padding: 14px;
-        }
+        .wideye-cart-shell { margin: 1rem auto 1.25rem; }
+        .wideye-cart-card { border-radius: 16px; }
+        .wideye-cart-thumb { width: 94px; height: 94px; }
+        .wideye-cart-card h3 { font-size: 1rem; }
+        .wideye-cart-card .card-body { padding: 14px; }
     }
 </style>
 
@@ -120,25 +178,77 @@
                 <div class="card-body">
 
                     {% for item in cart %}
+                    {% set size_opts = parse_options(item.product.size) %}
+                    {% set sugar_opts = parse_options(item.product.sugar) %}
+                    {% set milk_opts = parse_options(item.product.milk) %}
+                    {% set shot_opts = parse_options(item.product.shot) %}
 
-                    <div class="row align-items-center py-3">
-                        <div class="col-sm-3 text-center align-self-center">
-                            <img src="{{ get_product_image(item.product, item.size) }}" alt="" class="img-fluid wideye-cart-thumb shadow-sm">
+                    <div class="row align-items-start py-3">
+                        <div class="col-sm-3 text-center align-self-start pt-1">
+                            <img src="{{ get_product_image(item.product, item.size) }}"
+                                 alt="" class="img-fluid wideye-cart-thumb shadow-sm"
+                                 id="cart-img-{{ item.id }}">
                         </div>
                         <div class="col-sm-9">
-                            <div>
-                                <h3 class="mb-1">{{ item.product.product_name }}</h3>
-                                <p class="mb-2 text-muted small">{{ format_option_summary(item) }}</p>
-                                <div class="my-3 d-flex align-items-center gap-2">
-                                    <span class="small" style="color:#f6f7fb;">Quantity</span>
-                                    <a class="minus-cart wideye-qty-btn" pid="{{item.id}}" href="#"><i class="fas fa-minus fa-sm"></i></a>
-                                    <span class="wideye-qty-value" id="quantity">{{ item.quantity }}</span>
-                                    <a class="plus-cart wideye-qty-btn" pid="{{ item.id }}" href="#"><i class="fas fa-plus fa-sm"></i></a>
+                            <h3 class="mb-1">
+                                {{ item.product.product_name }}
+                                <span class="wideye-cart-saved-dot" id="saved-dot-{{ item.id }}"></span>
+                            </h3>
+
+                            <!-- Inline option selects -->
+                            <div class="wideye-cart-options" data-cart-id="{{ item.id }}">
+                                {% if size_opts %}
+                                <div class="wideye-cart-opt-group">
+                                    <span class="wideye-cart-opt-label">Size</span>
+                                    <select class="wideye-cart-opt-select wi-cart-size" name="size"
+                                            data-images="{{ item.product.product_picture }}">
+                                        {% for opt in size_opts %}
+                                        <option value="{{ opt }}" {{ 'selected' if opt == item.size }}>{{ opt }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <p class="mb-0"><strong>PhP {{ item.product.current_price }}</strong></p>
-                                    <a href="" class="remove-cart btn btn-sm wideye-cart-remove" pid="{{item.id}}">Remove</a>
+                                {% endif %}
+                                {% if sugar_opts %}
+                                <div class="wideye-cart-opt-group">
+                                    <span class="wideye-cart-opt-label">Sugar</span>
+                                    <select class="wideye-cart-opt-select" name="sugar">
+                                        {% for opt in sugar_opts %}
+                                        <option value="{{ opt }}" {{ 'selected' if opt == item.sugar }}>{{ opt }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
+                                {% endif %}
+                                {% if milk_opts %}
+                                <div class="wideye-cart-opt-group">
+                                    <span class="wideye-cart-opt-label">Milk</span>
+                                    <select class="wideye-cart-opt-select" name="milk">
+                                        {% for opt in milk_opts %}
+                                        <option value="{{ opt }}" {{ 'selected' if opt == item.milk }}>{{ opt }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+                                {% if shot_opts %}
+                                <div class="wideye-cart-opt-group">
+                                    <span class="wideye-cart-opt-label">Shot</span>
+                                    <select class="wideye-cart-opt-select" name="shot">
+                                        {% for opt in shot_opts %}
+                                        <option value="{{ opt }}" {{ 'selected' if opt == item.shot }}>{{ opt }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="my-2 d-flex align-items-center gap-2">
+                                <span class="small" style="color:#f6f7fb;">Qty</span>
+                                <a class="minus-cart wideye-qty-btn" pid="{{item.id}}" href="#"><i class="fas fa-minus fa-sm"></i></a>
+                                <span class="wideye-qty-value" id="quantity">{{ item.quantity }}</span>
+                                <a class="plus-cart wideye-qty-btn" pid="{{ item.id }}" href="#"><i class="fas fa-plus fa-sm"></i></a>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <p class="mb-0"><strong>PhP {{ item.product.current_price }}</strong></p>
+                                <a href="" class="remove-cart btn btn-sm wideye-cart-remove" pid="{{item.id}}">Remove</a>
                             </div>
                         </div>
                     </div>
@@ -157,39 +267,82 @@
                     <ul class="list-group">
                         {% for item in cart %}
 
-                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 pb-0"><strong>{{item.product.product_name}}</strong><span id="amount">{{item.product.current_price}} X <span id="quantity{{item.id}}">{{ item.quantity}}</span></span></li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 pt-1 small text-muted">{{ format_option_summary(item) }}</li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 pb-0">
+                            <strong>{{item.product.product_name}}</strong>
+                            <span id="amount">{{item.product.current_price}} × <span id="quantity{{item.id}}">{{ item.quantity}}</span></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 pt-1 small text-muted">
+                            {{ format_option_summary(item) }}
+                        </li>
 
                         {% endfor %}
 
-
-                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 pb-0">Amout <span>PhP <span id="amount_tt">{{ amount }}</span></span></li>
-
-                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 mb-3">
-                            <div style="margin-top: 15px;">
-                                <strong>Total</strong>
-                            </div>
-                            <span><strong>PhP </strong><span id="totalamount"><strong>{{ total }}</strong></span></span>
-    
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 pb-0">
+                            Amount <span>PhP <span id="amount_tt">{{ amount }}</span></span>
                         </li>
 
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 mb-3">
+                            <div style="margin-top: 15px;"><strong>Total</strong></div>
+                            <span><strong>PhP </strong><span id="totalamount"><strong>{{ total }}</strong></span></span>
+                        </li>
                     </ul>
 
                     <div class="d-grid"><a href="/choose-payment" class="btn btn-primary">Place Order</a></div>
-
                 </div>
             </div>
         </div>
 
-
-
         {% else %}
-
         <h1 class="text-center mb-5" style="color: white;">Your Cart is Empty</h1>
-
         {% endif %}
     </div>
 </div>
 
+<script>
+/* ── Auto-save options on change ── */
+document.querySelectorAll('.wideye-cart-options').forEach(function (group) {
+    var cartId = group.dataset.cartId;
+    var dot = document.getElementById('saved-dot-' + cartId);
+    var dotTimer;
+
+    function saveOptions() {
+        var data = new FormData();
+        group.querySelectorAll('select[name]').forEach(function (sel) {
+            data.append(sel.name, sel.value);
+        });
+
+        fetch('/update-cart-item/' + cartId, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: data,
+            credentials: 'same-origin'
+        }).then(function (r) { return r.json(); }).then(function (res) {
+            if (res.ok && dot) {
+                dot.style.opacity = '1';
+                clearTimeout(dotTimer);
+                dotTimer = setTimeout(function () { dot.style.opacity = '0'; }, 1800);
+            }
+        });
+
+        /* Update thumbnail if size image changes */
+        var sizeSelect = group.querySelector('.wi-cart-size');
+        if (sizeSelect) {
+            var imgEl = document.getElementById('cart-img-' + cartId);
+            if (imgEl) {
+                var images = (sizeSelect.dataset.images || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                var idx = sizeSelect.selectedIndex;
+                if (images.length > 0) {
+                    imgEl.src = images[Math.min(idx, images.length - 1)];
+                }
+            }
+        }
+    }
+
+    group.querySelectorAll('select').forEach(function (sel) {
+        sel.addEventListener('change', saveOptions);
+    });
+});
+</script>
 
 {% endblock %}
+

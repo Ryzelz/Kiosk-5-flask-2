@@ -135,17 +135,23 @@
         });
     };
 
-    const getFrameData = () => {
+    const getFrameData = (options = {}) => {
         if (!stream) {
             throw new Error('Camera is not started yet.');
         }
 
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
+        const sourceWidth = video.videoWidth || 1280;
+        const sourceHeight = video.videoHeight || 720;
+        const maxWidth = options.maxWidth || 640;
+        const quality = options.quality || 0.82;
+        const scale = Math.min(1, maxWidth / sourceWidth);
+
+        canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+        canvas.height = Math.max(1, Math.round(sourceHeight * scale));
 
         const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/jpeg', 0.92);
+        return canvas.toDataURL('image/jpeg', quality);
     };
 
     const clearOverlay = () => {
@@ -204,13 +210,30 @@
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(body || {})
+            body: JSON.stringify(body || {}),
+            credentials: 'same-origin'
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const rawText = await response.text();
+        let data = null;
+
+        if (contentType.includes('application/json')) {
+            try {
+                data = rawText ? JSON.parse(rawText) : {};
+            } catch (error) {
+                throw new Error('Server returned invalid JSON. Please refresh and try again.');
+            }
+        } else {
+            throw new Error(
+                response.status === 413
+                    ? 'Camera frame was too large for the server. Please try again.'
+                    : 'Server returned an unexpected response. Please refresh and try again.'
+            );
+        }
 
         if (!response.ok) {
-            throw new Error(data.message || 'Request failed.');
+            throw new Error((data && data.message) || 'Request failed.');
         }
 
         return data;
@@ -274,7 +297,7 @@
         try {
             previewBusy = true;
             const preview = await postJson(previewUrl, {
-                frame: getFrameData()
+                frame: getFrameData({ maxWidth: 480, quality: 0.65 })
             });
 
             drawPreviewOverlay(preview);
@@ -324,7 +347,7 @@
                 await new Promise(resolve => setTimeout(resolve, 600));
             }
 
-            const frame = getFrameData();
+            const frame = getFrameData({ maxWidth: 640, quality: 0.78 });
             const result = await postJson(captureUrl, {
                 frame: frame,
                 stage: step.key
@@ -360,7 +383,7 @@
     };
 
     const handleUsualConfirm = async () => {
-        const frame = getFrameData();
+        const frame = getFrameData({ maxWidth: 640, quality: 0.78 });
         const result = await postJson(confirmUrl, {
             frame: frame,
             payment_method: selectedPaymentMethod

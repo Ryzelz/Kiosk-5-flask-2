@@ -338,7 +338,12 @@ def print_cash_receipt(orders, total):
 
 @views.route('/')
 def home():
-    items = Product.query.order_by(Product.date_added.desc()).all()
+    items = (
+        Product.query
+        .filter(Product.product_picture.isnot(None), func.trim(Product.product_picture) != '')
+        .order_by(Product.date_added.desc())
+        .all()
+    )
 
     recommendations = (
         get_recommendations(current_user.id)
@@ -412,7 +417,8 @@ def show_cart():
 
     return render_template('cart.html', cart=cart, amount=amount, total=amount,
                            format_option_summary=format_option_summary,
-                           get_product_image=get_product_image)
+                           get_product_image=get_product_image,
+                           parse_options=parse_options)
 
 
 @views.route('/pluscart')
@@ -488,6 +494,30 @@ def remove_cart():
         }
 
         return jsonify(data)
+
+
+@views.route('/update-cart-item/<int:cart_id>', methods=['POST'])
+@login_required
+def update_cart_item(cart_id):
+    cart_item = Cart.query.get(cart_id)
+    if cart_item is None or cart_item.customer_link != current_user.id:
+        return jsonify(ok=False, message='Item not found'), 404
+
+    product = cart_item.product
+    selection = normalize_product_selection(
+        product,
+        size=request.values.get('size', ''),
+        sugar=request.values.get('sugar', ''),
+        milk=request.values.get('milk', ''),
+        shot=request.values.get('shot', ''),
+    )
+    cart_item.size  = selection['size']
+    cart_item.sugar = selection['sugar']
+    cart_item.milk  = selection['milk']
+    cart_item.shot  = selection['shot']
+    db.session.commit()
+
+    return jsonify(ok=True, message='Options updated')
 
 
 @views.route('/choose-payment')
@@ -804,7 +834,15 @@ def usual_order_cash_receipt(order_group_id):
 def search():
     if request.method == 'POST':
         search_query = request.form.get('search')
-        items = Product.query.filter(Product.product_name.ilike(f'%{search_query}%')).all()
+        items = (
+            Product.query
+            .filter(
+                Product.product_name.ilike(f'%{search_query}%'),
+                Product.product_picture.isnot(None),
+                func.trim(Product.product_picture) != ''
+            )
+            .all()
+        )
         return render_template('search.html', items=items, cart=Cart.query.filter_by(customer_link=current_user.id).all()
                            if current_user.is_authenticated else [],
                            get_product_image=get_product_image)

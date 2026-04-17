@@ -153,7 +153,12 @@ def add_shop_items():
 @login_required
 def shop_items():
     if current_user_is_admin():
-        items = Product.query.order_by(Product.date_added).all()
+        items = (
+            Product.query
+            .filter(Product.product_picture.isnot(None), func.trim(Product.product_picture) != '')
+            .order_by(Product.date_added)
+            .all()
+        )
         return render_template('shop_items.html', items=items,
                                parse_options=parse_options, get_product_image=get_product_image)
     return render_template('404.html')
@@ -823,7 +828,6 @@ def clear_demo_data():
     db.session.commit()
     flash('Demo data cleared. Showing live data.', 'success')
     return redirect('/analytics')
-
 
 
 
