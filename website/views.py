@@ -340,7 +340,11 @@ def print_cash_receipt(orders, total):
 def home():
     items = (
         Product.query
-        .filter(Product.product_picture.isnot(None), func.trim(Product.product_picture) != '')
+        .filter(
+            Product.is_demo.is_(False),
+            Product.product_picture.isnot(None),
+            func.trim(Product.product_picture) != ''
+        )
         .order_by(Product.date_added.desc())
         .all()
     )
@@ -837,6 +841,7 @@ def search():
         items = (
             Product.query
             .filter(
+                Product.is_demo.is_(False),
                 Product.product_name.ilike(f'%{search_query}%'),
                 Product.product_picture.isnot(None),
                 func.trim(Product.product_picture) != ''

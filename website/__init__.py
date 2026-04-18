@@ -46,6 +46,9 @@ def sync_customer_schema():
     if 'usual_product_id' not in existing_columns:
         statements.append('ALTER TABLE customer ADD COLUMN usual_product_id INTEGER')
 
+    if 'is_demo' not in existing_columns:
+        statements.append('ALTER TABLE customer ADD COLUMN is_demo BOOLEAN DEFAULT 0 NOT NULL')
+
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
@@ -63,6 +66,14 @@ def sync_customer_schema():
         connection.execute(text(
             'UPDATE customer SET face_profile_name = username '
             'WHERE face_profile_name IS NULL OR TRIM(face_profile_name) = ""'
+        ))
+
+        connection.execute(text(
+            'UPDATE customer SET is_demo = COALESCE(is_demo, 0)'
+        ))
+
+        connection.execute(text(
+            "UPDATE customer SET is_demo = 1 WHERE lower(email) LIKE '%@demo.com'"
         ))
 
 
@@ -87,6 +98,9 @@ def sync_product_schema():
     if 'size' not in existing_columns:
         statements.append("ALTER TABLE product ADD COLUMN size VARCHAR(500) DEFAULT '' NOT NULL")
 
+    if 'is_demo' not in existing_columns:
+        statements.append("ALTER TABLE product ADD COLUMN is_demo BOOLEAN DEFAULT 0 NOT NULL")
+
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))
@@ -96,6 +110,19 @@ def sync_product_schema():
             connection.execute(text(
                 f"UPDATE product SET {col} = '' WHERE {col} IS NULL OR TRIM(CAST({col} AS TEXT)) = '' OR TRIM(CAST({col} AS TEXT)) = '0'"
             ))
+
+        connection.execute(text(
+            'UPDATE product SET is_demo = COALESCE(is_demo, 0)'
+        ))
+
+        connection.execute(text(
+            "UPDATE product SET is_demo = 1 "
+            "WHERE product_name IN ("
+            "'Caramel Latte', 'Matcha Frappe', 'Classic Espresso', "
+            "'Hazelnut Cappuccino', 'Vanilla Cold Brew', "
+            "'Brown Sugar Milk Tea', 'Iced Americano'"
+            ")"
+        ))
 
 
 def sync_cart_schema():

@@ -10,6 +10,7 @@ class Customer(db.Model, UserMixin):
     username = db.Column(db.String(100))
     password_hash = db.Column(db.String(150))
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    is_demo = db.Column(db.Boolean, default=False, nullable=False)
     face_profile_name = db.Column(db.String(100))
     usual_product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
     date_joined = db.Column(db.DateTime(), default=datetime.utcnow)
@@ -51,6 +52,7 @@ class Product(db.Model):
     shot = db.Column(db.String(500), nullable=False, default='')
     product_picture = db.Column(db.Text, nullable=False)
     flash_sale = db.Column(db.Boolean, default=False)
+    is_demo = db.Column(db.Boolean, default=False, nullable=False)
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
 
     carts = db.relationship('Cart', backref=db.backref('product', lazy=True))

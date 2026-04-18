@@ -93,6 +93,13 @@ def _embed_in_canvas(face_gray, canvas_size=160):
         face_gray = face_gray[:, :, 0]
     canvas = np.full((canvas_size, canvas_size), 128, dtype=np.uint8)
     h, w = face_gray.shape[:2]
+    # If the face is larger than the canvas, scale it down to fit
+    if h > canvas_size or w > canvas_size:
+        scale = canvas_size / max(h, w)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        face_gray = cv2.resize(face_gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        h, w = face_gray.shape[:2]
     y0 = (canvas_size - h) // 2
     x0 = (canvas_size - w) // 2
     canvas[y0:y0 + h, x0:x0 + w] = face_gray

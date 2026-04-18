@@ -13,6 +13,24 @@ import time
 
 admin = Blueprint('admin', __name__)
 
+DEMO_EMAILS = [
+    'juan@demo.com',
+    'maria@demo.com',
+    'pedro@demo.com',
+    'ana@demo.com',
+    'carlos@demo.com',
+]
+
+DEMO_PRODUCT_NAMES = [
+    'Caramel Latte',
+    'Matcha Frappe',
+    'Classic Espresso',
+    'Hazelnut Cappuccino',
+    'Vanilla Cold Brew',
+    'Brown Sugar Milk Tea',
+    'Iced Americano',
+]
+
 
 def get_media_dir():
     media_dir = Path(current_app.config['MEDIA_DIR'])
@@ -155,7 +173,11 @@ def shop_items():
     if current_user_is_admin():
         items = (
             Product.query
-            .filter(Product.product_picture.isnot(None), func.trim(Product.product_picture) != '')
+            .filter(
+                Product.is_demo.is_(False),
+                Product.product_picture.isnot(None),
+                func.trim(Product.product_picture) != ''
+            )
             .order_by(Product.date_added)
             .all()
         )
@@ -579,7 +601,11 @@ def analytics_page():
         monthly_values.append(round(total, 2))
         cursor = next_month
 
-    has_demo_data = Customer.query.filter(Customer.email.like('%@demo.com')).first() is not None
+    has_demo_data = (
+        Customer.query.filter(Customer.is_demo.is_(True)).first() is not None
+        or Product.query.filter(Product.is_demo.is_(True)).first() is not None
+        or Order.query.filter(Order.payment_id.like('demo-%')).first() is not None
+    )
 
     return render_template(
         'analytics.html',
@@ -617,12 +643,12 @@ def seed_demo_data():
     # ── 2. Demo products: randomise prices/stock each run ────────────────────
     demo_product_specs = [
         {'name': 'Caramel Latte',       'base': 145},
-        {'name': 'Matcha Frappe',        'base': 155},
-        {'name': 'Classic Espresso',     'base': 95},
-        {'name': 'Hazelnut Cappuccino',  'base': 135},
-        {'name': 'Vanilla Cold Brew',    'base': 165},
-        {'name': 'Brown Sugar Milk Tea', 'base': 120},
-        {'name': 'Iced Americano',       'base': 100},
+        {'name': 'Matcha Frappe',       'base': 155},
+        {'name': 'Classic Espresso',    'base': 95},
+        {'name': 'Hazelnut Cappuccino', 'base': 135},
+        {'name': 'Vanilla Cold Brew',   'base': 165},
+        {'name': 'Brown Sugar Milk Tea','base': 120},
+        {'name': 'Iced Americano',      'base': 100},
     ]
     for spec in demo_product_specs:
         existing = Product.query.filter_by(product_name=spec['name']).first()
@@ -641,10 +667,15 @@ def seed_demo_data():
             p.shot            = 'Single, Double'
             p.product_picture = '/media/default.jpg'
             p.flash_sale      = rng.random() < 0.25
+            p.is_demo         = True
             db.session.add(p)
         else:
             # Refresh stock each seed so analytics shows variety
             existing.in_stock = rng.randint(20, 80)
+            existing.current_price = current_price
+            existing.previous_price = previous_price
+            existing.flash_sale = rng.random() < 0.25
+            existing.is_demo = True
     db.session.commit()
 
     # ── 3. Demo customers: fixed emails so we don't duplicate ────────────────
@@ -652,12 +683,8 @@ def seed_demo_data():
                    'Diego', 'Camille', 'Marco', 'Bea', 'Andrei', 'Claire', 'Paolo', 'Nica', 'Renz', 'Trisha']
     last_names  = ['dela Cruz', 'Santos', 'Reyes', 'Gonzales', 'Mendoza', 'Garcia', 'Lopez', 'Torres', 'Flores', 'Rivera',
                    'Villanueva', 'Aquino', 'Castillo', 'Ramos', 'Diaz', 'Bautista', 'Fernandez', 'Aguilar', 'Pascual', 'Navarro']
-    demo_emails = [
-        'juan@demo.com', 'maria@demo.com', 'pedro@demo.com',
-        'ana@demo.com',  'carlos@demo.com',
-    ]
     rng.shuffle(first_names)
-    for i, email in enumerate(demo_emails):
+    for i, email in enumerate(DEMO_EMAILS):
         fn = first_names[i % len(first_names)]
         ln = rng.choice(last_names)
         uname = (fn + ln.split()[-1]).lower().replace(' ', '')
@@ -665,19 +692,21 @@ def seed_demo_data():
         if c:
             c.username          = uname
             c.face_profile_name = uname
+            c.is_demo           = True
         else:
             c = Customer()
             c.email             = email
             c.username          = uname
             c.password_hash     = generate_password_hash('demo1234')
             c.is_admin          = False
+            c.is_demo           = True
             c.face_profile_name = uname
             db.session.add(c)
     db.session.commit()
 
     products  = Product.query.filter(Product.product_name.in_(
         [s['name'] for s in demo_product_specs])).all()
-    customers = Customer.query.filter(Customer.email.in_(demo_emails)).all()
+    customers = Customer.query.filter(Customer.email.in_(DEMO_EMAILS)).all()
 
     if not products or not customers:
         flash('Demo seed failed: could not load demo entities.', 'danger')
@@ -791,39 +820,48 @@ def clear_demo_data():
     if not current_user_is_admin():
         return render_template('404.html')
 
-    demo_emails = ['juan@demo.com', 'maria@demo.com', 'pedro@demo.com',
-                   'ana@demo.com', 'carlos@demo.com']
-    demo_product_names = ['Caramel Latte', 'Matcha Frappe', 'Classic Espresso',
-                          'Hazelnut Cappuccino', 'Vanilla Cold Brew',
-                          'Brown Sugar Milk Tea', 'Iced Americano']
-
-    # Collect demo customer IDs first
-    demo_customers = Customer.query.filter(Customer.email.in_(demo_emails)).all()
+    # Collect demo customer and product IDs first
+    demo_customers = Customer.query.filter(
+        (Customer.is_demo.is_(True)) | (Customer.email.in_(DEMO_EMAILS))
+    ).all()
     demo_customer_ids = [c.id for c in demo_customers]
+    demo_products = Product.query.filter(
+        (Product.is_demo.is_(True)) | (Product.product_name.in_(DEMO_PRODUCT_NAMES))
+    ).all()
+    demo_product_ids = [p.id for p in demo_products]
 
     # Remove demo orders (by payment_id prefix)
     Order.query.filter(Order.payment_id.like('demo-%')).delete(synchronize_session=False)
 
-    # Remove any remaining orders tied to demo customers (safety net)
+    # Remove any remaining orders tied to demo customers or demo products
     if demo_customer_ids:
         Order.query.filter(Order.customer_link.in_(demo_customer_ids)).delete(synchronize_session=False)
+    if demo_product_ids:
+        Order.query.filter(Order.product_link.in_(demo_product_ids)).delete(synchronize_session=False)
 
-    # Remove cart items belonging to demo customers
+    # Remove cart items belonging to demo customers or demo products
     if demo_customer_ids:
         Cart.query.filter(Cart.customer_link.in_(demo_customer_ids)).delete(synchronize_session=False)
+    if demo_product_ids:
+        Cart.query.filter(Cart.product_link.in_(demo_product_ids)).delete(synchronize_session=False)
 
-    # Remove usual order items belonging to demo customers
+    # Remove usual-order links belonging to demo customers or demo products
     if demo_customer_ids:
         UsualOrderItem.query.filter(UsualOrderItem.customer_link.in_(demo_customer_ids)).delete(synchronize_session=False)
+    if demo_product_ids:
+        UsualOrderItem.query.filter(UsualOrderItem.product_link.in_(demo_product_ids)).delete(synchronize_session=False)
+        Customer.query.filter(Customer.usual_product_id.in_(demo_product_ids)).update(
+            {'usual_product_id': None},
+            synchronize_session=False
+        )
 
     # Now safe to remove demo customers
-    Customer.query.filter(Customer.email.in_(demo_emails)).delete(synchronize_session=False)
+    if demo_customer_ids:
+        Customer.query.filter(Customer.id.in_(demo_customer_ids)).delete(synchronize_session=False)
 
-    # Remove demo products only if they have no remaining orders
-    for name in demo_product_names:
-        product = Product.query.filter_by(product_name=name).first()
-        if product and Order.query.filter_by(product_link=product.id).count() == 0:
-            db.session.delete(product)
+    # Remove demo products completely when switching back to live data
+    for product in demo_products:
+        db.session.delete(product)
 
     db.session.commit()
     flash('Demo data cleared. Showing live data.', 'success')
